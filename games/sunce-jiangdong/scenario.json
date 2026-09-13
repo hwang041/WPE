@@ -1,0 +1,28 @@
+{
+  "id": "sunce-jiangdong",
+  "name": "孙策平江东",
+  "description": "点对点 + 卡驱 + 势力参战/结盟：行动牌点数=激活数，事件牌=数据驱动效果。",
+  "units": [
+    { "counter": "0",  "name": "孙策",   "owner": 0, "node": "liyang" },
+    { "counter": "1",  "name": "周瑜",   "owner": 0, "node": "hengjiang" },
+    { "counter": "2",  "name": "程普",   "owner": 0, "node": "niuzhu" },
+    { "counter": "3",  "name": "黄盖",   "owner": 0, "node": "moling" },
+    { "counter": "4",  "name": "韩当",   "owner": 0, "node": "gushu" },
+    { "counter": "5",  "name": "吴景",   "owner": 0, "node": "wuhu" },
+    { "counter": "6",  "name": "孙贲",   "owner": 0, "node": "niuzhu" },
+    { "counter": "7",  "name": "朱治",   "owner": 0, "node": "moling" },
+    { "counter": "8",  "name": "吕范",   "owner": 0, "node": "hengjiang" },
+
+    { "counter": "9",  "name": "刘繇",   "owner": 1, "node": "qua" },
+    { "counter": "10", "name": "太史慈", "owner": 1, "node": "qua" },
+    { "counter": "11", "name": "张英",   "owner": 1, "node": "dangli" },
+    { "counter": "12", "name": "陈横",   "owner": 1, "node": "dangli" },
+    { "counter": "13", "name": "于糜",   "owner": 1, "node": "jiangcheng" },
+    { "counter": "14", "name": "樊能",   "owner": 1, "node": "jurong" },
+    { "counter": "15", "name": "笮融",   "owner": 1, "node": "hushu" },
+    { "counter": "16", "name": "严白虎", "owner": 1, "node": "wujun" },
+    { "counter": "17", "name": "严舆",   "owner": 1, "node": "wujun" },
+    { "counter": "18", "name": "王朗",   "owner": 1, "node": "kuaiji" },
+    { "counter": "19", "name": "周昕",   "owner": 1, "node": "kuaiji" }
+  ]
+}

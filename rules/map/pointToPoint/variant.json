@@ -1,0 +1,17 @@
+{
+  "subsystem": "map",
+  "id": "pointToPoint",
+  "version": "1.0.0",
+  "status": "stable",
+  "description": "数据驱动点对点地图（城镇节点 + 道路），节点城防/势力",
+  "configFile": "spacemap.json",
+  "requires": [],
+  "provides": ["nodes", "roads", "nodetype", "controllednodes", "occupiedby", "terrainDefense"],
+  "configSchema": {
+    "name": "string 地图名",
+    "nodeRadius": "float 节点半径(命中/绘制)",
+    "nodes": "[{ id, name, x, y, attributes: { faction, type, defense } }] 城镇节点",
+    "edges": "[{ a, b, type(major|minor|road) }] 道路(无向)",
+    "lines": "[{ style(river|line), width, points: [[x,y], ...] }] 装饰折线(河流)"
+  }
+}

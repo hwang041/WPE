@@ -9,12 +9,22 @@ namespace Wpe.Core.Model;
 /// terrain movement costs, terrain combat bonuses, river edges and victory hexes.
 /// Everything is authored as data — no image recognition, no game-specific code.
 /// </summary>
-public sealed class GridMap
+public sealed class GridMap : IMap
 {
     public int Columns { get; set; } = 18;
     public int Rows { get; set; } = 12;
     public float HexRadius { get; set; } = 90;
     public bool PointyTop { get; set; } = true;
+
+    public float CellRadius => HexRadius;
+
+    public IReadOnlyList<HexCoord> Neighbors(HexCoord c) => HexMath.Neighbors(c, PointyTop).ToList();
+
+    public int Distance(HexCoord a, HexCoord b) => HexMath.Distance(a, b);
+
+    public HexCoord CellAt(PointF p) => PixelToAxial(p);
+
+    public bool TryResolveCell(string key, out HexCoord cell) { cell = default; return false; }
 
     /// <summary>Per-hex terrain codes, one string per row (each of length == Columns).</summary>
     public string[] Terrain { get; set; } = Array.Empty<string>();

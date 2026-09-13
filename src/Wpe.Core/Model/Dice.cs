@@ -17,6 +17,10 @@ public sealed class SeededRandom
 
     public int RollDie(int sides) => _rng.Next(1, sides + 1);
 
+    public int Next(int maxExclusive) => _rng.Next(maxExclusive);
+
+    public int Next(int minValue, int maxValue) => _rng.Next(minValue, maxValue);
+
     public int[] RollDice(int count, int sides)
     {
         var results = new int[count];

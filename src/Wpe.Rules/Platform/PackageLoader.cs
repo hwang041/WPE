@@ -65,7 +65,7 @@ public static class PackageLoader
         // 3) instantiate variants
         var host = new ModuleHost();
         CoreFunctions.Seed(host);
-        foreach (var subsystem in new[] { "map", "counter", "movement", "combat", "dice", "turn", "victory", "scenario" })
+        foreach (var subsystem in new[] { "map", "counter", "movement", "combat", "dice", "turn", "victory", "scenario", "cards", "stacking" })
         {
             if (!selection.TryGetValue(subsystem, out var sel)) continue;
             var variant = DefaultFamilies.Create(subsystem, sel.Variant);
@@ -108,6 +108,15 @@ public static class PackageLoader
             var state = new GameState(def) { Map = host.MapData };
             foreach (var sub in DefaultFamilies.ApplyOrder)
                 host.GetVariant(sub)?.Apply(state, null);
+
+            // resolve each counter's faction colour from the game's palette (renderers stay game-agnostic)
+            foreach (var c in state.Counters)
+            {
+                var fac = c.AttributeStr("faction", "");
+                if (!string.IsNullOrEmpty(fac) && !c.Attributes.ContainsKey("color") &&
+                    def.Factions.TryGetValue(fac, out var fd) && !string.IsNullOrEmpty(fd.Color))
+                    c.Attributes["color"] = fd.Color;
+            }
 
             // damaged-side penalties (contract: strength/move drop by these when flipped)
             foreach (var c in state.Counters)
@@ -197,6 +206,8 @@ public static class PackageLoader
             result.Errors.Add("[rules] 存在战斗行动但未启用 combat 子系统");
         if (def.Moves.Values.Any(m => m.Kind == "movement") && host.Movement == null)
             result.Errors.Add("[rules] 存在移动行动但未启用 movement 子系统");
+        if (def.Moves.Values.Any(m => m.NeedsCard) && host.GetVariant("cards") == null)
+            result.Errors.Add("[rules] 存在出牌行动 (needsCard) 但未启用 cards 子系统");
         if (def.EndConditions.Count > 0 && host.Victory == null)
             result.Warnings.Add("[rules] 配置了 endConditions 但未启用 victory 子系统（使用内核回退）");
     }
@@ -231,6 +242,9 @@ public static class PackageLoader
         }
         foreach (var t in def.Triggers.Values)
             CheckEffects($"triggers[{t.On}]", t.Do, Check);
+        CheckEffects("setup", def.Setup, Check);
+        foreach (var (id, cdef) in host.Cards)
+            CheckEffects($"card.{id}.effects", cdef.Effects, Check);
         foreach (var e in def.EndConditions)
             Check($"endConditions", e.When);
         foreach (var r in def.TurnReset)
@@ -251,6 +265,7 @@ public static class PackageLoader
             check($"{where}.x", e.X);
             check($"{where}.y", e.Y);
             check($"{where}.text", e.Text);
+            check($"{where}.player", e.Player);
         }
     }
 }

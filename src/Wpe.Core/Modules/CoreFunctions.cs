@@ -12,9 +12,9 @@ public static class CoreFunctions
     public static void Seed(ModuleHost host)
     {
         // --- geometry / state ---
-        host.AddFunction("dist", (ctx, a) => Dist(AsCoord(a, ctx, 0), AsCoord(a, ctx, 1)));
-        host.AddFunction("distance", (ctx, a) => Dist(AsCoord(a, ctx, 0), AsCoord(a, ctx, 1)));
-        host.AddFunction("adjacent", (ctx, a) => Dist(AsCoord(a, ctx, 0), AsCoord(a, ctx, 1)) == 1);
+        host.AddFunction("dist", (ctx, a) => (double)Dist(ctx, AsCoord(a, ctx, 0), AsCoord(a, ctx, 1)));
+        host.AddFunction("distance", (ctx, a) => (double)Dist(ctx, AsCoord(a, ctx, 0), AsCoord(a, ctx, 1)));
+        host.AddFunction("adjacent", (ctx, a) => Dist(ctx, AsCoord(a, ctx, 0), AsCoord(a, ctx, 1)) == 1);
         host.AddFunction("sameboard", (ctx, a) =>
             C(a, ctx, 0)?.OnBoard == true && C(a, ctx, 1)?.OnBoard == true);
         host.AddFunction("occupied", (ctx, a) =>
@@ -114,7 +114,8 @@ public static class CoreFunctions
         };
     }
 
-    private static int Dist(HexCoord a, HexCoord b) => HexMath.Distance(a, b);
+    private static int Dist(RuleContext ctx, HexCoord a, HexCoord b)
+        => ctx.State.Map?.Distance(a, b) ?? HexMath.Distance(a, b);
 
     private static CounterState? C(object?[] a, RuleContext ctx, int i)
         => a.Length > i ? a[i] as CounterState : null;

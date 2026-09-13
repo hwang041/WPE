@@ -1,0 +1,211 @@
+{
+  "id": "sunce-jiangdong",
+  "name": "孙策平江东",
+  "description": "点对点 + 卡驱 + 势力参战/结盟：行动牌点数=激活数，事件牌=数据驱动效果；反孙势力逐个参战，孙策坐大则概率结盟抗孙。",
+  "playerCount": 2,
+  "family": "default",
+  "rules": {
+    "map":      { "variant": "pointToPoint", "file": "spacemap.json" },
+    "counter":  { "variant": "generic",      "file": "units.json" },
+    "scenario": { "variant": "generic",      "file": "scenario.json" },
+    "movement": { "variant": "roadNetwork" },
+    "combat":   { "variant": "crTable",      "file": "combat.json" },
+    "dice":     { "variant": "d6" },
+    "turn":     { "variant": "phases" },
+    "victory":  { "variant": "vpAndSudden" },
+    "cards":    { "variant": "standard",     "file": "cards.json" },
+    "stacking": { "variant": "perHex",       "config": { "maxPerHex": 3 } }
+  },
+  "seed": 20240913,
+  "phaseOrder": [ "card", "action" ],
+  "damage": { "strengthPenalty": 1, "movePenalty": 1 },
+  "autoActWhenExhausted": false,
+
+  "factions": {
+    "sunce":    { "color": "#D9534F", "label": "孙策军" },
+    "liuyao":   { "color": "#4F8FD9", "label": "刘繇军" },
+    "zerong":   { "color": "#3FB0A8", "label": "笮融军" },
+    "yanbaihu": { "color": "#5AB05A", "label": "严白虎军" },
+    "wanglang": { "color": "#9B6FD9", "label": "王朗军" }
+  },
+
+  "nodeTypes": {
+    "州城": { "shape": "castle", "scale": 1.35, "short": "州" },
+    "郡城": { "shape": "castle", "scale": 1.15, "short": "郡" },
+    "县城": { "shape": "dot",    "scale": 0.90, "short": "县" },
+    "关隘": { "shape": "gate",   "scale": 1.05, "short": "关" },
+    "港口": { "shape": "anchor", "scale": 1.00, "short": "港" },
+    "渡口": { "shape": "anchor", "scale": 0.85, "short": "渡" }
+  },
+
+  "setup": [
+    { "effect": "draw", "deck": "main", "count": 6, "player": "0" },
+    { "effect": "draw", "deck": "main", "count": 6, "player": "1" },
+    { "effect": "setvar", "key": "hostile_liuyao",   "value": "1" },
+    { "effect": "setvar", "key": "hostile_zerong",   "value": "0" },
+    { "effect": "setvar", "key": "hostile_yanbaihu", "value": "0" },
+    { "effect": "setvar", "key": "hostile_wanglang", "value": "0" }
+  ],
+
+  "turnReset": [
+    { "attr": "acted", "value": "0" },
+    { "attr": "activated", "value": "0" },
+    { "attr": "moveLeft", "value": "expr:effMove(counter)" }
+  ],
+
+  "triggers": {
+    "a_cardReset": {
+      "on": "phaseStart",
+      "phase": "card",
+      "do": [
+        { "effect": "setvar", "key": "fireBonus", "value": "0" },
+        { "effect": "setvar", "key": "cardPlayed", "value": "0" }
+      ]
+    },
+    "a2_replenish": {
+      "on": "phaseStart",
+      "phase": "card",
+      "do": [
+        { "effect": "replenish", "deck": "main", "player": "me" }
+      ]
+    },
+    "b_coalitionRoll": {
+      "on": "phaseStart",
+      "phase": "card",
+      "do": [
+        { "effect": "roll", "key": "coalitionRoll", "count": 1, "sides": 6,
+          "when": "me == 0 && controllednodes('sunce') >= 6 && (state.vars.hostile_zerong != 1 || state.vars.hostile_yanbaihu != 1 || state.vars.hostile_wanglang != 1)" }
+      ]
+    },
+    "c_coalitionJoin": {
+      "on": "phaseStart",
+      "phase": "card",
+      "do": [
+        { "effect": "setvar", "key": "hostile_zerong", "value": "1",
+          "when": "me == 0 && controllednodes('sunce') >= 6 && state.vars.coalitionRoll >= 4 && state.vars.hostile_zerong != 1" },
+        { "effect": "setvar", "key": "hostile_yanbaihu", "value": "1",
+          "when": "me == 0 && controllednodes('sunce') >= 6 && state.vars.coalitionRoll >= 4 && state.vars.hostile_zerong == 1 && state.vars.hostile_yanbaihu != 1" },
+        { "effect": "setvar", "key": "hostile_wanglang", "value": "1",
+          "when": "me == 0 && controllednodes('sunce') >= 6 && state.vars.coalitionRoll >= 4 && state.vars.hostile_yanbaihu == 1 && state.vars.hostile_wanglang != 1" },
+        { "effect": "log", "text": "'【抗孙同盟】又一家江东势力参战！'",
+          "when": "me == 0 && controllednodes('sunce') >= 6 && state.vars.coalitionRoll >= 4 && (state.vars.hostile_zerong != 1 || state.vars.hostile_yanbaihu != 1 || state.vars.hostile_wanglang != 1)" }
+      ]
+    }
+  },
+
+  "moves": {
+    "endphase": {
+      "id": "endphase",
+      "kind": "endphase",
+      "label": "结束阶段",
+      "validators": [ "phase != 'card' || state.vars.cardPlayed == 1" ],
+      "effects": [ { "effect": "endphase" } ]
+    },
+
+    "playcard": {
+      "id": "playcard",
+      "kind": "card",
+      "label": "出牌",
+      "phase": "card",
+      "needsCard": true,
+      "validators": [ "state.vars.cardPlayed != 1" ],
+      "effects": [
+        { "effect": "setvar", "key": "cardPlayed", "value": "1" },
+        { "effect": "log", "text": "'本回合可激活 ' + state.vars.activations + ' 支部队'" }
+      ]
+    },
+
+    "move": {
+      "id": "move",
+      "kind": "movement",
+      "label": "移动",
+      "phase": "action",
+      "needsCounter": true,
+      "needsPosition": true,
+      "counterFilter": "counter.owner == me",
+      "validators": [
+        "notacted(counter)",
+        "counter.activated == 1 || state.vars.activations > 0",
+        "dist(counter, pos) == 1",
+        "not(occupiedby(pos, 1 - me))",
+        "counter.moveLeft >= 1"
+      ],
+      "effects": [
+        { "effect": "move", "counter": "counter", "to": "pos" },
+        { "effect": "control", "counter": "counter", "value": "counter.faction" },
+        { "effect": "setattr", "counter": "counter", "key": "activated", "value": "1", "when": "counter.activated != 1" },
+        { "effect": "addvar", "key": "activations", "value": "-1", "when": "counter.activated != 1" },
+        { "effect": "setattr", "counter": "counter", "key": "moveLeft", "value": "counter.moveLeft - 1" },
+        { "effect": "log", "text": "'移动一步'" }
+      ]
+    },
+
+    "attack": {
+      "id": "attack",
+      "kind": "combat",
+      "label": "攻击",
+      "phase": "action",
+      "needsCounter": true,
+      "needsTargetCounter": true,
+      "counterFilter": "counter.owner == me",
+      "targetFilter": "target.owner != me",
+      "validators": [
+        "notacted(counter)",
+        "counter.activated == 1 || state.vars.activations > 0",
+        "dist(counter, target) == 1",
+        "counter.owner == 0 || (counter.faction == 'liuyao' && state.vars.hostile_liuyao == 1) || (counter.faction == 'zerong' && state.vars.hostile_zerong == 1) || (counter.faction == 'yanbaihu' && state.vars.hostile_yanbaihu == 1) || (counter.faction == 'wanglang' && state.vars.hostile_wanglang == 1)"
+      ],
+      "roll": { "var": "roll", "count": 1, "sides": 6, "hand": 0, "drm": "state.vars.fireBonus" },
+      "combat": "combat",
+      "effects": [
+        { "effect": "setattr", "counter": "counter", "key": "acted", "value": "1" },
+        { "effect": "setattr", "counter": "counter", "key": "activated", "value": "1", "when": "counter.activated != 1" },
+        { "effect": "addvar", "key": "activations", "value": "-1", "when": "counter.activated != 1" },
+        { "effect": "setvar", "key": "hostile_liuyao", "value": "1", "when": "target.faction == 'liuyao' && state.vars.hostile_liuyao != 1" },
+        { "effect": "setvar", "key": "hostile_zerong", "value": "1", "when": "target.faction == 'zerong' && state.vars.hostile_zerong != 1" },
+        { "effect": "setvar", "key": "hostile_yanbaihu", "value": "1", "when": "target.faction == 'yanbaihu' && state.vars.hostile_yanbaihu != 1" },
+        { "effect": "setvar", "key": "hostile_wanglang", "value": "1", "when": "target.faction == 'wanglang' && state.vars.hostile_wanglang != 1" },
+        { "effect": "log", "text": "'【' + target.faction + ' 参战】'",
+          "when": "target.faction != 'sunce' && ((target.faction == 'liuyao' && state.vars.hostile_liuyao != 1) || (target.faction == 'zerong' && state.vars.hostile_zerong != 1) || (target.faction == 'yanbaihu' && state.vars.hostile_yanbaihu != 1) || (target.faction == 'wanglang' && state.vars.hostile_wanglang != 1))" },
+        { "effect": "log", "text": "'战力 ' + effStr(counter) + ' vs ' + effStr(target) + '+城防' + terrainDefense(target) + ' 骰=' + roll + ' → ' + result" }
+      ],
+      "resultEffects": {
+        "E": [
+          { "effect": "remove", "counter": "target" },
+          { "effect": "log", "text": "'敌军被歼灭'" }
+        ],
+        "D": [
+          { "effect": "flip", "counter": "target", "when": "isfront(target)" },
+          { "effect": "remove", "counter": "target", "when": "isback(target)" },
+          { "effect": "log", "text": "'敌军受创'" }
+        ],
+        "0": [
+          { "effect": "log", "text": "'无效果'" }
+        ]
+      }
+    },
+
+    "pass": {
+      "id": "pass",
+      "kind": "pass",
+      "label": "结束行动",
+      "isEndAction": true,
+      "phase": "action",
+      "needsCounter": true,
+      "counterFilter": "counter.owner == me",
+      "validators": [ "notacted(counter)" ],
+      "effects": [
+        { "effect": "setattr", "counter": "counter", "key": "acted", "value": "1" },
+        { "effect": "log", "text": "'结束行动'" }
+      ]
+    }
+  },
+
+  "endConditions": [
+    { "when": "controllednodes('sunce') >= 24", "message": "孙策尽取江东，霸业已成！", "winner": 0 },
+    { "when": "friendlycount(0) == 0", "message": "孙策军覆灭，江东联军获胜！", "winner": 1 },
+    { "when": "state.vars.vp0 >= 3", "message": "孙策威震江东！", "winner": 0 },
+    { "when": "state.vars.vp1 >= 3", "message": "江东联军守住基业！", "winner": 1 },
+    { "when": "enemycount(me) == 0", "message": "敌军全灭，江东平定！" }
+  ]
+}

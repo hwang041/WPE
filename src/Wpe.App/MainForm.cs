@@ -1,3 +1,4 @@
+using System.Text;
 using SkiaSharp;
 using SkiaSharp.Views.Desktop;
 using Wpe.Core.Definition;
@@ -8,8 +9,8 @@ namespace Wpe.App;
 
 /// <summary>
 /// Hotseat GUI. Talks to the engine only through move.kind (movement / combat /
-/// recover / pass) and the reachable/targets seams — it never knows concrete move ids,
-/// so it works for any table-driven game package.
+/// recover / pass), the reachable/targets seams and the cards seam — it never knows
+/// concrete move ids, so it works for any table-driven game package.
 /// </summary>
 public sealed class MainForm : Form
 {
@@ -27,10 +28,16 @@ public sealed class MainForm : Form
     private readonly Button _resetBtn;
     private readonly CheckBox _hexGridChk;
     private readonly CheckBox _hexNumChk;
+    private readonly Panel _handPanel;
+    private readonly Label _handLabel;
+    private readonly FlowLayoutPanel _hand;
+    private readonly Panel _stackPanel;
+    private readonly ListBox _stackList;
 
     private const float MinZoom = 0.001f;
     private const float MaxZoom = 5f;
 
+    private readonly bool _headless;
     private int _selectedId = -1;
     private bool _dragging;
     private Point _lastMouse;
@@ -39,10 +46,11 @@ public sealed class MainForm : Form
     private readonly List<GameState> _undoStack = new();
     private readonly GameState _initial;
 
-    public MainForm(GameState state, GameEngine engine, string gameDir)
+    public MainForm(GameState state, GameEngine engine, string gameDir, bool headless = false)
     {
         _state = state;
         _engine = engine;
+        _headless = headless;
         _initial = state.Clone();
         _renderer = new BoardRenderer(state);
 
@@ -65,9 +73,19 @@ public sealed class MainForm : Form
         _resetBtn = new Button { Text = "重置 ↺", Width = 80 };
         _hexGridChk = new CheckBox { Text = "六角格", Checked = true, AutoSize = true };
         _hexNumChk = new CheckBox { Text = "序号", Checked = false, AutoSize = true };
-        _status = new Label { AutoSize = false, Width = 360, TextAlign = ContentAlignment.MiddleLeft, Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right };
-        _hexInfo = new Label { AutoSize = false, Width = 220, TextAlign = ContentAlignment.MiddleLeft };
-        _log = new ListBox { Dock = DockStyle.Bottom, Height = 180, HorizontalScrollbar = true };
+        _status = new Label { AutoSize = false, Width = 420, TextAlign = ContentAlignment.MiddleLeft };
+        _hexInfo = new Label { AutoSize = false, Width = 240, TextAlign = ContentAlignment.MiddleLeft };
+        _log = new ListBox { Dock = DockStyle.Bottom, Height = 150, HorizontalScrollbar = true };
+
+        _handPanel = new Panel { Dock = DockStyle.Fill };
+        _handLabel = new Label { Dock = DockStyle.Top, Height = 20, Text = "" };
+        _hand = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoScroll = true, WrapContents = false, FlowDirection = FlowDirection.LeftToRight };
+        _handPanel.Controls.Add(_hand);
+        _handPanel.Controls.Add(_handLabel);
+
+        var bottom = new Panel { Dock = DockStyle.Bottom, Height = 300 };
+        bottom.Controls.Add(_handPanel);
+        bottom.Controls.Add(_log);
 
         var top = new Panel { Dock = DockStyle.Top, Height = 38 };
         top.Controls.AddRange(new Control[] { _endPhaseBtn, _consolidateBtn, _passBtn, _undoBtn, _resetBtn, _hexGridChk, _hexNumChk, _status, _hexInfo });
@@ -79,11 +97,28 @@ public sealed class MainForm : Form
         _hexGridChk.Location = new Point(498, 10);
         _hexNumChk.Location = new Point(566, 10);
         _status.Location = new Point(628, 8);
-        _hexInfo.Location = new Point(1018, 8);
+        _hexInfo.Location = new Point(1058, 8);
 
-        Controls.Add(_log);
+        _stackPanel = new Panel { Left = 8, Top = 48, Width = 180, Height = 240, Visible = false, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(245, 245, 245) };
+        var stackHeader = new Label
+        {
+            Dock = DockStyle.Top,
+            Height = 24,
+            Text = "堆叠 · 选择算子",
+            TextAlign = ContentAlignment.MiddleCenter,
+            BackColor = Color.FromArgb(222, 228, 222),
+            Font = new Font("Microsoft YaHei UI", 9f, FontStyle.Bold)
+        };
+        _stackList = new ListBox { Dock = DockStyle.Fill, Font = new Font("Microsoft YaHei UI", 9.5f), IntegralHeight = false };
+        _stackList.Click += (s, e) => { if (_stackList.SelectedIndex >= 0) SelectStackItem(_stackList.SelectedIndex); };
+        _stackPanel.Controls.Add(_stackList);
+        _stackPanel.Controls.Add(stackHeader);
+
         Controls.Add(_sk);
+        Controls.Add(bottom);
         Controls.Add(top);
+        Controls.Add(_stackPanel);
+        _stackPanel.BringToFront();
 
         _endPhaseBtn.Click += (s, e) => DoEndPhase();
         _consolidateBtn.Click += (s, e) => DoConsolidate();
@@ -101,13 +136,21 @@ public sealed class MainForm : Form
         PushLog();
     }
 
+    private int Var(string key) => _state.Vars.TryGetValue(key, out var v) ? (int)Value(v) : 0;
+    private static double Value(object? v) => v switch
+    {
+        double d => d, int i => i, float f => f, long l => l,
+        string s => double.TryParse(s, out var d2) ? d2 : 0, bool b => b ? 1 : 0, _ => 0
+    };
+
     // ---------- UI refresh ----------
 
     private void RefreshUi()
     {
         var who = _state.ActivePlayer == 0 ? "玩家1" : "玩家2";
-        _status.Text = $"回合 {_state.TurnNumber} | 阶段 {PhaseLabel()} | 先手 {who}";
-        _endPhaseBtn.Enabled = _engine.IsTurn(_state.ActivePlayer) && !_engine.GameOver;
+        var extra = _state.Cards.Count > 0 ? $" | 激活 {Var("activations")} | 已出牌 {Var("cardPlayed")}" : "";
+        _status.Text = $"回合 {_state.TurnNumber} | 阶段 {PhaseLabel()} | 先手 {who}{extra}";
+        _endPhaseBtn.Enabled = _engine.IsTurn(_state.ActivePlayer) && !_engine.GameOver && CanEndPhase();
         _consolidateBtn.Enabled = _selectedId >= 0 &&
             _engine.LegalMovesForCounter(_state.Counters[_selectedId]).Any(m => m.Kind == "recover");
         _passBtn.Enabled = _selectedId >= 0 &&
@@ -118,25 +161,35 @@ public sealed class MainForm : Form
             if (c.AttributeInt("acted", 0) == 0 && c.RotationDeg != 0)
                 c.RotationDeg = 0;
 
+        RebuildHand();
         _sk.Invalidate();
     }
 
-    private string PhaseLabel()
+    private bool CanEndPhase()
+        => _state.CurrentPhase != "card" || Var("cardPlayed") == 1;
+
+    private string PhaseLabel() => _state.CurrentPhase switch
     {
-        return _state.CurrentPhase switch
-        {
-            "action" => "行动",
-            "turnEnd" => "回合结束",
-            _ => _state.CurrentPhase
-        };
-    }
+        "action" => "行动",
+        "card" => "出牌",
+        "turnEnd" => "回合结束",
+        _ => _state.CurrentPhase
+    };
 
     private string SelectedInfo()
     {
         if (_selectedId < 0) return "";
         var c = _state.Counters[_selectedId];
         var s = $"[{c.Id}] {c.Name} 攻{c.AttributeFloat("strength")}/移{c.AttributeFloat("move")}";
-        if (c.OnBoard) s += $" hex({c.Hex.Q},{c.Hex.R})";
+        if (c.OnBoard)
+        {
+            if (_state.Map is SpaceMap space)
+            {
+                var node = space.NearestNode(space.CenterOf(c.Hex));
+                if (node != null) s += $" {node.Name}·{node.AttrStr("type", "")} 城防{node.AttrInt("defense", 0)}";
+            }
+            else s += $" hex({c.Hex.Q},{c.Hex.R})";
+        }
         if (c.AttributeInt("acted") == 1) s += " 已行动";
         return s;
     }
@@ -148,6 +201,50 @@ public sealed class MainForm : Form
         foreach (var line in _state.Log.TakeLast(200)) _log.Items.Add(line);
         _log.SelectedIndex = _log.Items.Count - 1;
         _log.EndUpdate();
+    }
+
+    // ---------- cards ----------
+
+    private void RebuildHand()
+    {
+        _hand.Controls.Clear();
+        if (_state.Cards.Count == 0) { _handLabel.Text = ""; return; }
+
+        var player = _state.ActivePlayer;
+        var cards = _engine.Hand(player);
+        _handLabel.Text = $"玩家{player + 1} 手牌 {cards.Count}（{PhaseLabel()}）";
+        foreach (var card in cards)
+        {
+            _engine.Host.Cards.TryGetValue(card.DefId, out var def);
+            var kind = def?.Kind ?? "action";
+            var header = kind == "action" ? $"{def?.Name} 行动 {def?.Value}" : $"{def?.Name} 事件";
+            var btn = new Button
+            {
+                Width = 128,
+                Height = 110,
+                Margin = new Padding(4),
+                Text = $"{header}\n\n{def?.Text}",
+                TextAlign = ContentAlignment.TopCenter,
+                BackColor = kind == "action" ? Color.FromArgb(255, 244, 214) : Color.FromArgb(222, 236, 255),
+                Enabled = _engine.IsTurn(player) && _engine.CanPlayCard(card, out _)
+            };
+            var captured = card;
+            btn.Click += (s, e) => DoPlayCard(captured);
+            _hand.Controls.Add(btn);
+        }
+    }
+
+    private void DoPlayCard(CardState card)
+    {
+        _undoStack.Add(_state.Clone());
+        if (_engine.PlayCard(card))
+        {
+            _engine.Host.Cards.TryGetValue(card.DefId, out var def);
+            _state.LogMessage($"打出 [{def?.Name}]");
+        }
+        PushLog();
+        RefreshUi();
+        CheckGameOver();
     }
 
     // ---------- input ----------
@@ -176,16 +273,19 @@ public sealed class MainForm : Form
             _lastMouse = e.Location;
             _sk.Invalidate();
         }
-        else
+        else if (_state.Map is SpaceMap space)
         {
             var b = _renderer.ScreenToBoard(e.X, e.Y);
-            if (_state.Map != null)
-            {
-                var hex = _state.Map.PixelToAxial(b);
-                _hexInfo.Text = _state.Map.InBounds(hex)
-                    ? $"屏幕→hex({hex.Q},{hex.R}) {_state.Map.TerrainAt(hex)}"
-                    : $"hex({hex.Q},{hex.R}) 界外";
-            }
+            var node = space.NearestNode(b);
+            _hexInfo.Text = node != null ? $"→ {node.Name}" : "";
+        }
+        else if (_state.Map != null)
+        {
+            var b = _renderer.ScreenToBoard(e.X, e.Y);
+            var hex = _state.Map.CellAt(b);
+            _hexInfo.Text = _state.Map.InBounds(hex)
+                ? $"屏幕→hex({hex.Q},{hex.R}) {_state.Map.TerrainAt(hex)}"
+                : $"hex({hex.Q},{hex.R}) 界外";
         }
     }
 
@@ -201,49 +301,96 @@ public sealed class MainForm : Form
     private void HandleClick(PointF boardPos)
     {
         if (_engine.GameOver) return;
+        HideStackList();
 
         if (_selectedId >= 0)
         {
             var unit = _state.Counters[_selectedId];
-            var hitEnemy = PickUnit(boardPos);
-            if (hitEnemy != null && _attackTargets.Contains(hitEnemy.Id))
+            var hit = PickTop(boardPos);
+            if (hit != null && _attackTargets.Contains(hit.Id))
             {
-                DoAttack(unit, hitEnemy);
+                DoAttack(unit, hit);
                 return;
             }
             if (_state.Map != null)
             {
-                var hex = _state.Map.PixelToAxial(boardPos);
+                var cell = _state.Map.CellAt(boardPos);
                 var move = _engine.LegalMovesForCounter(unit).FirstOrDefault(m => m.Kind == "movement");
-                if (move != null && _engine.CanApply(move.Id, unit, hex, null, out _))
+                if (move != null && _engine.CanApply(move.Id, unit, cell, null, out _))
                 {
-                    DoMove(unit, hex);
+                    DoMove(unit, cell);
                     return;
                 }
             }
         }
 
-        var hit = PickUnit(boardPos);
-        if (hit != null)
+        var stack = StackAt(boardPos);
+        if (stack.Count > 1)
         {
-            SelectUnit(hit.Id);
+            ShowStackList(stack);
             return;
         }
-
+        if (stack.Count == 1)
+        {
+            SelectUnit(stack[0].Id);
+            return;
+        }
         if (_selectedId >= 0) Deselect();
     }
 
-    private CounterState? PickUnit(PointF pos)
+    /// <summary>Counters under a board point, top-most first (fanned stacks included).</summary>
+    private List<CounterState> StackAt(PointF pos)
     {
-        if (_state.Map == null) return null;
-        var half = _renderer.CounterSize / 2f;
-        foreach (var c in _state.CountersOnBoard())
+        var result = new List<CounterState>();
+        if (_state.Map == null) return result;
+        var size = _renderer.CounterSize;
+        var half = size / 2f;
+        foreach (var group in _state.CountersOnBoard().GroupBy(c => c.Hex))
         {
-            var center = _state.Map.CenterOf(c.Hex);
-            if (Math.Abs(pos.X - center.X) <= half && Math.Abs(pos.Y - center.Y) <= half)
-                return c;
+            var list = group.OrderBy(c => c.Id).ToList();
+            var center = _state.Map.CenterOf(group.Key);
+            bool hit = false;
+            for (int i = list.Count - 1; i >= 0; i--)
+            {
+                float ox = 0, oy = 0;
+                if (_state.Map is SpaceMap) { ox = i * size * 0.20f; oy = i * size * 0.32f; }
+                if (Math.Abs(pos.X - (center.X + ox)) <= half && Math.Abs(pos.Y - (center.Y + oy)) <= half)
+                {
+                    hit = true;
+                    break;
+                }
+            }
+            if (hit)
+                for (int i = list.Count - 1; i >= 0; i--) result.Add(list[i]); // top-most first
         }
-        return null;
+        return result;
+    }
+
+    private CounterState? PickTop(PointF pos) => StackAt(pos).FirstOrDefault();
+
+    private void ShowStackList(List<CounterState> stack)
+    {
+        _stackList.Items.Clear();
+        foreach (var c in stack)
+            _stackList.Items.Add($"{c.Name} 攻{c.AttributeFloat("strength")}{(c.AttributeInt("acted", 0) == 1 ? " (已行动)" : "")}");
+        _stackList.Tag = stack;
+        _stackList.SelectedIndex = 0;
+        _stackPanel.Visible = true;
+    }
+
+    private void SelectStackItem(int index)
+    {
+        if (_stackList.Tag is List<CounterState> list && index >= 0 && index < list.Count)
+        {
+            SelectUnit(list[index].Id);
+            HideStackList();
+        }
+    }
+
+    private void HideStackList()
+    {
+        _stackPanel.Visible = false;
+        _stackList.Tag = null;
     }
 
     private void SelectUnit(int id)
@@ -274,20 +421,19 @@ public sealed class MainForm : Form
 
     // ---------- actions ----------
 
-    private void DoMove(CounterState unit, HexCoord hex)
+    private void DoMove(CounterState unit, HexCoord cell)
     {
         _undoStack.Add(_state.Clone());
-        if (_engine.Apply("move", unit, hex, null))
+        var move = _engine.LegalMovesForCounter(unit).FirstOrDefault(m => m.Kind == "movement");
+        if (move != null && _engine.Apply(move.Id, unit, cell, null))
         {
-            if (unit.AttributeInt("acted") == 1)
+            if (unit.AttributeInt("acted", 0) == 1)
             {
                 unit.RotationDeg = 45f;
-                _state.LogMessage($"{unit.Name} 移动力/攻击用尽，行动结束");
                 Deselect();
             }
             else
             {
-                _state.LogMessage($"{unit.Name} 移动，剩余移动力 {unit.AttributeFloat("moveLeft")}");
                 _moveTargets.Clear();
                 _moveTargets.AddRange(_engine.ReachablePositions(unit));
                 _attackTargets.Clear();
@@ -338,12 +484,13 @@ public sealed class MainForm : Form
 
     private void DoAttack(CounterState attacker, CounterState target)
     {
+        var move = _engine.LegalMovesForCounter(attacker).FirstOrDefault(m => m.Kind == "combat");
+        if (move == null) return;
         _undoStack.Add(_state.Clone());
-        if (_engine.Apply("attack", attacker, null, target))
+        if (_engine.Apply(move.Id, attacker, null, target))
         {
             attacker.Attributes["acted"] = 1;
             attacker.RotationDeg = 45f;
-            _state.LogMessage($"{attacker.Name} 攻击 {target.Name}，骰子 {string.Join(",", _state.LastDice.Select(d => d.Value))}");
             Deselect();
         }
         PushLog();
@@ -392,10 +539,17 @@ public sealed class MainForm : Form
         _state.ResultMessage = snap.ResultMessage;
         _state.Vars.Clear();
         foreach (var (k, v) in snap.Vars) _state.Vars[k] = v;
+        _state.Control.Clear();
+        foreach (var (k, v) in snap.Control) _state.Control[k] = v;
         _state.Log.Clear();
         _state.Log.AddRange(snap.Log);
         _state.LastDice.Clear();
         _state.LastDice.AddRange(snap.LastDice);
+        for (int i = 0; i < _state.Cards.Count && i < snap.Cards.Count; i++)
+        {
+            var c = _state.Cards[i]; var s = snap.Cards[i];
+            c.DefId = s.DefId; c.Deck = s.Deck; c.Owner = s.Owner; c.Zone = s.Zone;
+        }
         for (int i = 0; i < _state.Counters.Count; i++)
         {
             var c = _state.Counters[i]; var s = snap.Counters[i];
@@ -414,7 +568,7 @@ public sealed class MainForm : Form
         {
             _state.LogMessage($"===== 游戏结束：{_engine.ResultMessage} =====");
             PushLog();
-            MessageBox.Show(_engine.ResultMessage, "游戏结束", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            if (!_headless) MessageBox.Show(_engine.ResultMessage, "游戏结束", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
     }
 
@@ -438,7 +592,7 @@ public sealed class MainForm : Form
         using var movePaint = new SKPaint { Style = SKPaintStyle.Fill, Color = new SKColor(80, 220, 80, 90) };
         using var attackPaint = new SKPaint { Style = SKPaintStyle.Fill, Color = new SKColor(240, 80, 80, 120) };
         var map = _state.Map;
-        var R = map?.HexRadius ?? 80f;
+        var R = map?.CellRadius ?? 80f;
 
         foreach (var hex in _moveTargets)
         {
@@ -450,9 +604,77 @@ public sealed class MainForm : Form
         foreach (var id in _attackTargets)
         {
             var c = _state.Counters[id];
-            if (!c.OnBoard) continue;
-            var (sx, sy) = _renderer.BoardToScreen(map!.CenterOf(c.Hex).X, map.CenterOf(c.Hex).Y);
+            if (!c.OnBoard || map == null) continue;
+            var center = map.CenterOf(c.Hex);
+            var (sx, sy) = _renderer.BoardToScreen(center.X, center.Y);
             canvas.DrawCircle(sx, sy, R * _renderer.Scale, attackPaint);
         }
+    }
+
+    // ---------- headless self-test (--uitest) ----------
+
+    public string SmokeTest()
+    {
+        var sb = new StringBuilder();
+        try
+        {
+            sb.AppendLine($"game={_engine.Def.Name} phase={_state.CurrentPhase} cards={_state.Cards.Count}");
+            if (_state.CurrentPhase == "card")
+            {
+                var card = _engine.Hand(_state.ActivePlayer).FirstOrDefault(c => _engine.CanPlayCard(c, out _));
+                if (card != null)
+                {
+                    DoPlayCard(card);
+                    sb.AppendLine($"played zone={card.Zone} activations={Var("activations")}");
+                    var second = _engine.Hand(_state.ActivePlayer).FirstOrDefault(c => _engine.CanPlayCard(c, out _));
+                    sb.AppendLine($"secondPlayable={second != null}");
+                }
+                else sb.AppendLine("no playable card");
+                if (CanEndPhase()) DoEndPhase();
+                sb.AppendLine($"afterEndPhase phase={_state.CurrentPhase}");
+            }
+
+            var unit = _state.CountersOnBoard()
+                .FirstOrDefault(c => c.AttributeInt("owner", -1) == _state.ActivePlayer && c.AttributeInt("acted", 0) == 0);
+            if (unit != null)
+            {
+                SelectUnit(unit.Id);
+                sb.AppendLine($"selected={unit.Name} moveTargets={_moveTargets.Count} attackTargets={_attackTargets.Count}");
+                if (_moveTargets.Count > 0)
+                {
+                    DoMove(unit, _moveTargets[0]);
+                    sb.AppendLine($"moved -> {unit.Hex.Q},{unit.Hex.R} onBoard={unit.OnBoard}");
+                }
+                if (_attackTargets.Count > 0)
+                {
+                    var target = _state.Counters[_attackTargets[0]];
+                    DoAttack(unit, target);
+                    sb.AppendLine($"attacked {target.Name} side={target.Side} onBoard={target.OnBoard}");
+                }
+            }
+
+            // stack fan-out / selection on a node holding multiple counters
+            var multi = _state.CountersOnBoard().GroupBy(c => c.Hex).FirstOrDefault(g => g.Count() > 1);
+            if (multi != null)
+            {
+                var list = multi.OrderBy(c => c.Id).ToList();
+                var center = _state.Map!.CenterOf(multi.Key);
+                var size = _renderer.CounterSize;
+                int i = list.Count - 1;
+                var probe = new PointF(center.X + i * size * 0.20f, center.Y + i * size * 0.32f);
+                var stack = StackAt(probe);
+                ShowStackList(stack);
+                sb.AppendLine($"stackAtNode count={stack.Count} panel={_stackPanel.Visible}");
+                if (stack.Count > 0) { SelectStackItem(0); sb.AppendLine($"stackSelected={_state.Counters[_selectedId].Name}"); }
+            }
+
+            sb.AppendLine("UITEST OK");
+        }
+        catch (Exception ex)
+        {
+            sb.AppendLine("UITEST ERROR");
+            sb.AppendLine(ex.ToString());
+        }
+        return sb.ToString();
     }
 }

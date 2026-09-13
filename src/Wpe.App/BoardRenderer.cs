@@ -22,8 +22,8 @@ public sealed class BoardRenderer
 
     public BoardRenderer(GameState state) => _state = state;
 
-    /// <summary>On-screen-board size of a counter (square, relative to the hex).</summary>
-    public float CounterSize => (_state.Map?.HexRadius ?? 80f) * 1.15f;
+    /// <summary>On-screen-board size of a counter (square, relative to the cell).</summary>
+    public float CounterSize => (_state.Map?.CellRadius ?? 80f) * 1.15f;
 
     private SKBitmap Chip(CounterState c)
     {
@@ -44,12 +44,16 @@ public sealed class BoardRenderer
         canvas.Translate(-PanX, -PanY);
 
         var map = _state.Map;
-        if (map != null)
-            GridMapPainter.DrawGrid(canvas, map, ShowHexNumbers, 1f / Scale, 1f / Scale);
+        if (map is GridMap grid)
+            GridMapPainter.DrawGrid(canvas, grid, ShowHexNumbers, 1f / Scale, 1f / Scale);
+        else if (map is SpaceMap space)
+            SpaceMapPainter.Draw(canvas, space, _state.CountersOnBoard().ToList(), _state.Control,
+                _state.Def.Factions, _state.Def.NodeTypes);
         DrawCounters(canvas);
 
         canvas.Restore();
-        if (map != null) DrawLegend(canvas, viewW, viewH);
+        if (map is GridMap) DrawLegend(canvas, viewW, viewH);
+        else if (map is SpaceMap) DrawSpaceLegend(canvas, viewW, viewH);
     }
 
     private void DrawCounters(SKCanvas canvas)
@@ -61,15 +65,20 @@ public sealed class BoardRenderer
         using var selEdge = new SKPaint { Style = SKPaintStyle.Stroke, StrokeWidth = 4f / Scale, Color = new SKColor(80, 220, 255) };
         using var shadow = new SKPaint { Style = SKPaintStyle.Fill, Color = new SKColor(0, 0, 0, 70) };
 
-        foreach (var c in _state.CountersOnBoard())
+        var stackIndex = new Dictionary<HexCoord, int>();
+        foreach (var c in _state.CountersOnBoard().OrderBy(c => c.Id))
         {
+            stackIndex.TryGetValue(c.Hex, out var i);
+            stackIndex[c.Hex] = i + 1;
             var center = _state.Map.CenterOf(c.Hex);
-            var rect = new SKRect(center.X - half, center.Y - half, center.X + half, center.Y + half);
+            float ox = 0, oy = 0;
+            if (_state.Map is SpaceMap) { ox = i * size * 0.20f; oy = i * size * 0.32f; }
+            var rect = new SKRect(center.X - half + ox, center.Y - half + oy, center.X + half + ox, center.Y + half + oy);
 
             canvas.Save();
-            if (c.RotationDeg != 0) canvas.RotateDegrees(c.RotationDeg, center.X, center.Y);
+            if (c.RotationDeg != 0) canvas.RotateDegrees(c.RotationDeg, center.X + ox, center.Y + oy);
 
-            canvas.DrawOval(new SKRect(center.X - half * 0.5f, center.Y + half * 0.9f, center.X + half * 0.5f, center.Y + half * 1.1f), shadow);
+            canvas.DrawOval(new SKRect(center.X - half * 0.5f + ox, center.Y + half * 0.9f + oy, center.X + half * 0.5f + ox, center.Y + half * 1.1f + oy), shadow);
             var bmp = Chip(c); // cached — do NOT dispose
             canvas.DrawBitmap(bmp, rect, new SKPaint { FilterQuality = SKFilterQuality.Medium });
 
@@ -92,7 +101,7 @@ public sealed class BoardRenderer
         };
         using var bg = new SKPaint { Style = SKPaintStyle.Fill, Color = new SKColor(0, 0, 0, 150) };
         canvas.DrawRoundRect(new SKRect(x - 8, y - 8, w - 8, h - 2), 8, 8, bg);
-        using var text = new SKPaint { Color = SKColors.White, TextSize = 12, IsAntialias = true };
+        using var text = new SKPaint { Color = SKColors.White, TextSize = 12, IsAntialias = true, Typeface = CounterRenderer.CjkTypeface() };
         canvas.DrawText("图例", x, y, text);
         int yy = y + 16;
         foreach (var it in items)
@@ -103,6 +112,23 @@ public sealed class BoardRenderer
             yy += 16;
         }
         canvas.DrawText("★ 胜利点", x, yy + 4, text);
+    }
+
+    private void DrawSpaceLegend(SKCanvas canvas, int w, int h)
+    {
+        int x = w - 150, y = h - 150;
+        using var bg = new SKPaint { Style = SKPaintStyle.Fill, Color = new SKColor(0, 0, 0, 150) };
+        canvas.DrawRoundRect(new SKRect(x - 8, y - 8, w - 8, h - 2), 8, 8, bg);
+        using var text = new SKPaint { Color = SKColors.White, TextSize = 12, IsAntialias = true, Typeface = CounterRenderer.CjkTypeface() };
+        canvas.DrawText("图例", x, y, text);
+        int yy = y + 16;
+        foreach (var (label, color) in SpaceMapPainter.BuildLegend(_state.Def.Factions))
+        {
+            using var sw = new SKPaint { Style = SKPaintStyle.Fill, Color = color };
+            canvas.DrawCircle(x + 7, yy + 5, 6, sw);
+            canvas.DrawText(label, x + 18, yy + 10, text);
+            yy += 16;
+        }
     }
 
     /// <summary>Screen -> board units.</summary>

@@ -38,6 +38,13 @@ public interface IRuleVariant
 
 // ---- seam interfaces: the algorithmic surface a subsystem provides -------------
 
+/// <summary>Stacking subsystem: how many counters may share one cell.</summary>
+public interface IStackingModule
+{
+    /// <summary>Maximum counters per cell; 0 = unlimited.</summary>
+    int MaxPerHex { get; }
+}
+
 /// <summary>Movement subsystem: how far units can go and what stepping costs.</summary>
 public interface IMovementModule
 {
@@ -84,12 +91,22 @@ public sealed class ModuleHost
     private readonly Dictionary<string, EffectHandler> _effects = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Map data produced by the map subsystem (set at Register time).</summary>
-    public GridMap? MapData { get; set; }
+    public IMap? MapData { get; set; }
 
     /// <summary>Combat tables (from combat.json), keyed by combat id referenced from moves.</summary>
     public Dictionary<string, CombatDef> CombatDefs { get; } = new();
 
+    /// <summary>Card definitions (from cards.json), keyed by card id — populated by the cards subsystem.</summary>
+    public Dictionary<string, CardDef> Cards { get; } = new();
+
+    /// <summary>Deck composition (from cards.json) — populated by the cards subsystem.</summary>
+    public List<DeckDef> Decks { get; } = new();
+
+    /// <summary>Deterministic RNG shared by card draws and the "roll" effect (reseeded on reset).</summary>
+    public SeededRandom Rng { get; set; } = new(20240913);
+
     public IMovementModule? Movement { get; set; }
+    public IStackingModule? Stacking { get; set; }
     public ICombatModule? Combat { get; set; }
     public IDiceModule? Dice { get; set; }
     public ITurnModule? Turn { get; set; }

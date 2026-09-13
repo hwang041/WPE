@@ -1,0 +1,7 @@
+{
+  "subsystem": "cards",
+  "id": "standard",
+  "version": "1.0.0",
+  "status": "stable",
+  "description": "通用卡牌框架：cards.json 牌定义+牌库，抽/洗/弃 + 手牌"
+}

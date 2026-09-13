@@ -1,0 +1,7 @@
+{
+  "subsystem": "stacking",
+  "id": "perHex",
+  "version": "1.0.0",
+  "status": "stable",
+  "description": "每格堆叠上限：maxPerHex 个算子/格"
+}

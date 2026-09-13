@@ -53,7 +53,16 @@ public sealed class GenericScenario : IRuleVariant
             if (u.Strength.HasValue) c.Attributes["strength"] = u.Strength.Value;
             if (u.Move.HasValue) c.Attributes["move"] = u.Move.Value;
 
-            if (u.Hex is { Length: >= 2 })
+            if (!string.IsNullOrEmpty(u.Node) && state.Map != null && state.Map.TryResolveCell(u.Node, out var cell))
+            {
+                c.Position = cell;
+                c.Attributes["node"] = u.Node;
+                c.Attributes.Remove("entryTurn");
+                c.Attributes.Remove("entryHex");
+                if (c.Attributes.TryGetValue("faction", out var f) && f != null)
+                    state.Control[u.Node] = f.ToString() ?? "";
+            }
+            else if (u.Hex is { Length: >= 2 })
             {
                 c.Position = new HexCoord(u.Hex[0], u.Hex[1]);
                 c.Attributes.Remove("entryTurn");
@@ -84,8 +93,8 @@ public sealed class GenericScenario : IRuleVariant
                 issues.Add($"[scenario] 算子 '{u.Key}' 的进场格 ({e[0]},{e[1]}) 无效");
             if (u.EntryTurn.HasValue && u.EntryHex == null)
                 issues.Add($"[scenario] 算子 '{u.Key}' 有 entryTurn 但缺 entryHex");
-            if (u.Hex == null && u.EntryTurn == null)
-                issues.Add($"[scenario] 算子 '{u.Key}' 既无 hex 也无 entryTurn，将不会上战场");
+            if (u.Hex == null && u.EntryTurn == null && string.IsNullOrEmpty(u.Node))
+                issues.Add($"[scenario] 算子 '{u.Key}' 既无 hex 也无 node/entryTurn，将不会上战场");
         }
     }
 
@@ -119,6 +128,8 @@ public sealed class ScenarioUnitDef
     public double? Strength { get; set; }
     public double? Move { get; set; }
     public int[]? Hex { get; set; }
+    /// <summary>Point-to-point deployment: node id (spacemap.json).</summary>
+    public string? Node { get; set; }
     public int? EntryTurn { get; set; }
     public int[]? EntryHex { get; set; }
 

@@ -1,0 +1,41 @@
+{
+  "handLimit": 6,
+  "cards": {
+    "a1": { "name": "进军", "kind": "action", "value": 1, "text": "激活 1 支部队",
+            "effects": [ { "effect": "setvar", "key": "activations", "value": "1" } ] },
+    "a2": { "name": "疾行", "kind": "action", "value": 2, "text": "激活 2 支部队",
+            "effects": [ { "effect": "setvar", "key": "activations", "value": "2" } ] },
+    "a3": { "name": "突袭", "kind": "action", "value": 3, "text": "激活 3 支部队",
+            "effects": [ { "effect": "setvar", "key": "activations", "value": "3" } ] },
+
+    "e_borrow": { "name": "借兵", "kind": "event", "text": "抽 2 张牌，激活 1 支部队",
+                  "effects": [ { "effect": "draw", "deck": "main", "count": 2, "player": "me" },
+                               { "effect": "setvar", "key": "activations", "value": "1" } ] },
+    "e_fire":   { "name": "火攻", "kind": "event", "text": "本回合攻击 +1，激活 1 支部队",
+                  "effects": [ { "effect": "setvar", "key": "fireBonus", "value": "1" },
+                               { "effect": "setvar", "key": "activations", "value": "1" } ] },
+    "e_seal":   { "name": "传国玉玺", "kind": "event", "text": "威望 +1，激活 1 支部队",
+                  "effects": [ { "effect": "addvar", "key": "vp0", "value": "1", "when": "me == 0" },
+                               { "effect": "addvar", "key": "vp1", "value": "1", "when": "me == 1" },
+                               { "effect": "setvar", "key": "activations", "value": "1" } ] },
+    "e_speed":  { "name": "疾风", "kind": "event", "text": "本回合激活 2 支部队",
+                  "effects": [ { "effect": "setvar", "key": "activations", "value": "2" } ] },
+    "e_supply": { "name": "补给", "kind": "event", "text": "抽 1 张牌并激活 1 支部队",
+                  "effects": [ { "effect": "draw", "deck": "main", "count": 1, "player": "me" },
+                               { "effect": "setvar", "key": "activations", "value": "1" } ] }
+  },
+  "decks": {
+    "main": {
+      "entries": [
+        { "card": "a1", "count": 4 },
+        { "card": "a2", "count": 4 },
+        { "card": "a3", "count": 2 },
+        { "card": "e_borrow", "count": 1 },
+        { "card": "e_fire", "count": 2 },
+        { "card": "e_seal", "count": 1 },
+        { "card": "e_speed", "count": 2 },
+        { "card": "e_supply", "count": 2 }
+      ]
+    }
+  }
+}

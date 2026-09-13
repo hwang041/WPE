@@ -47,16 +47,16 @@ public sealed class MovePoints : IRuleVariant, IMovementModule
         host.Movement = this;
         host.AddFunction("moveCost", (ctx, a) => (double)StepCost(ctx.State, Coord(a, ctx, 0), Coord(a, ctx, 1)));
         host.AddFunction("move_cost", (ctx, a) => (double)StepCost(ctx.State, Coord(a, ctx, 0), Coord(a, ctx, 1)));
-        host.AddFunction("riverCost", (ctx, a) => (double)(ctx.State.Map?.RiverCost(Coord(a, ctx, 0), Coord(a, ctx, 1)) ?? 0));
-        host.AddFunction("river_cost", (ctx, a) => (double)(ctx.State.Map?.RiverCost(Coord(a, ctx, 0), Coord(a, ctx, 1)) ?? 0));
+        host.AddFunction("riverCost", (ctx, a) => (double)((ctx.State.Map as GridMap)?.RiverCost(Coord(a, ctx, 0), Coord(a, ctx, 1)) ?? 0));
+        host.AddFunction("river_cost", (ctx, a) => (double)((ctx.State.Map as GridMap)?.RiverCost(Coord(a, ctx, 0), Coord(a, ctx, 1)) ?? 0));
     }
 
     public void Apply(GameState state, GameEngine? engine)
     {
-        if (state.Map == null) return;
-        if (_terrainCost != null) state.Map.OverlayCosts(_terrainCost, null);
-        if (_terrainDefense != null) state.Map.OverlayCosts(null, _terrainDefense);
-        state.Map.RiverCrossCost = _riverCrossCost;
+        if (state.Map is not GridMap gm) return;
+        if (_terrainCost != null) gm.OverlayCosts(_terrainCost, null);
+        if (_terrainDefense != null) gm.OverlayCosts(null, _terrainDefense);
+        gm.RiverCrossCost = _riverCrossCost;
     }
 
     public void Validate(GameDefinition def, List<string> issues)
@@ -74,7 +74,7 @@ public sealed class MovePoints : IRuleVariant, IMovementModule
     public List<HexCoord> Reachable(CounterState unit, GameEngine engine)
     {
         var result = new List<HexCoord>();
-        var gm = engine.State.Map;
+        var gm = engine.State.Map as GridMap;
         if (gm == null || !unit.OnBoard) return result;
         var moveLeft = unit.AttributeFloat("moveLeft");
         var visited = new Dictionary<HexCoord, float> { [unit.Hex] = 0f };
@@ -106,8 +106,7 @@ public sealed class MovePoints : IRuleVariant, IMovementModule
 
     private static float StepCost(GameState state, HexCoord from, HexCoord to)
     {
-        var gm = state.Map;
-        if (gm == null) return 1f;
+        if (state.Map is not GridMap gm) return 1f;
         return gm.TerrainCostAt(to) + gm.RiverCost(from, to);
     }
 

@@ -99,7 +99,7 @@ public sealed class HexGrid : IRuleVariant
         }
     }
 
-    private static GridMap Map(RuleContext ctx) => ctx.State.Map ?? throw new ExprException("地图未加载");
+    private static IMap Map(RuleContext ctx) => ctx.State.Map ?? throw new ExprException("地图未加载");
     private static HexCoord Coord(object?[] a, int i)
         => a.Length > i && a[i] is HexCoord c ? c : new HexCoord(0, 0);
 

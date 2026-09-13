@@ -29,6 +29,18 @@ public sealed class GameDefinition
     public DamageConfig Damage { get; set; } = new();
     public bool AutoActWhenExhausted { get; set; }
 
+    /// <summary>Faction display palette: faction key -> color/label (used by renderers; keeps games' factions out of the shared code).</summary>
+    public Dictionary<string, FactionDef> Factions { get; set; } = new();
+
+    /// <summary>Node-type display styles for point-to-point maps: type key -> shape/scale/short label.</summary>
+    public Dictionary<string, NodeTypeDef> NodeTypes { get; set; } = new();
+
+    /// <summary>Effects run once when the engine starts (e.g. deal opening hands).</summary>
+    public List<EffectDef> Setup { get; set; } = new();
+
+    /// <summary>Seed for reproducible shuffles/dice (replay, AI, tests).</summary>
+    public int Seed { get; set; } = 20240913;
+
     /// <summary>Optional per-game C# hook (assembly-qualified type name implementing IHook).</summary>
     public string? HookType { get; set; }
 }
@@ -67,6 +79,8 @@ public sealed class MoveDef
     public bool NeedsCounter { get; set; }
     public bool NeedsPosition { get; set; }
     public bool NeedsTargetCounter { get; set; }
+    /// <summary>Whether the move takes a card from the player's hand (card-driven play).</summary>
+    public bool NeedsCard { get; set; }
     public string? CounterFilter { get; set; }
     public string? TargetFilter { get; set; }
     public List<string> Validators { get; set; } = new();
@@ -134,6 +148,40 @@ public sealed class EffectDef
     public int Hexes { get; set; } = 1;
     /// <summary>For "retreat": behavior when no retreat hex exists ("none"/"flip"/"remove").</summary>
     public string? OnFail { get; set; }
+    /// <summary>For card effects ("draw"/"shuffle"): which deck.</summary>
+    public string Deck { get; set; } = "";
+    /// <summary>For card effects ("draw"/"roll"): how many cards / dice.</summary>
+    public int Count { get; set; } = 1;
+    /// <summary>For the "roll" effect: number of sides.</summary>
+    public int Sides { get; set; } = 6;
+    /// <summary>For card effects ("draw"): which player (expression, e.g. "me"/"0"). Empty = active player.</summary>
+    public string Player { get; set; } = "";
+}
+
+/// <summary>A card definition: an action (numeric value) or an event (data-driven effects).</summary>
+public sealed class CardDef
+{
+    public string Id { get; set; } = "";
+    public string Name { get; set; } = "";
+    /// <summary>"action" (value used by the card-driven rule) or "event" (effects resolved on play).</summary>
+    public string Kind { get; set; } = "action";
+    public double Value { get; set; }
+    public string? Text { get; set; }
+    /// <summary>Effects executed when the card is played (event cards; action cards may set activation vars too).</summary>
+    public List<EffectDef> Effects { get; set; } = new();
+}
+
+/// <summary>A deck built from a list of (card id, count) entries.</summary>
+public sealed class DeckDef
+{
+    public string Id { get; set; } = "";
+    public List<DeckEntryDef> Entries { get; set; } = new();
+}
+
+public sealed class DeckEntryDef
+{
+    public string Card { get; set; } = "";
+    public int Count { get; set; } = 1;
 }
 
 public sealed class TriggerDef
@@ -148,4 +196,22 @@ public sealed class EndDef
     public string When { get; set; } = "";
     public string Message { get; set; } = "";
     public int? Winner { get; set; }
+}
+
+/// <summary>Display metadata for a faction (colour + human label). Purely presentational.</summary>
+public sealed class FactionDef
+{
+    /// <summary>"#RRGGBB" colour string.</summary>
+    public string Color { get; set; } = "";
+    public string Label { get; set; } = "";
+}
+
+/// <summary>Display style for a point-to-point node type (shape glyph, scale, short label).</summary>
+public sealed class NodeTypeDef
+{
+    /// <summary>"castle" | "gate" | "anchor" | "dot".</summary>
+    public string Shape { get; set; } = "dot";
+    public float Scale { get; set; } = 1f;
+    /// <summary>Short suffix appended to the node name (e.g. "州").</summary>
+    public string Short { get; set; } = "";
 }

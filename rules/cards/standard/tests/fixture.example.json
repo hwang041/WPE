@@ -1,0 +1,14 @@
+{
+  "description": "cards/standard 变体测试夹具示例：牌库构成 + setup 发牌后的期望手牌数/牌库数。verify/CI 将逐条断言。",
+  "deck": {
+    "id": "main",
+    "entries": [
+      { "card": "a1", "count": 4 },
+      { "card": "e1", "count": 2 }
+    ]
+  },
+  "setup": [
+    { "effect": "draw", "deck": "main", "count": 2, "player": "0" }
+  ],
+  "expect": { "deckCount": 4, "handOfPlayer0": 2 }
+}

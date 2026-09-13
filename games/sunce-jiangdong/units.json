@@ -1,0 +1,23 @@
+{
+  "0":  { "name": "孙策",   "owner": 0, "faction": "sunce",    "strength": 4, "move": 3, "attack": 4, "type": "主将" },
+  "1":  { "name": "周瑜",   "owner": 0, "faction": "sunce",    "strength": 3, "move": 3, "attack": 3, "type": "都督" },
+  "2":  { "name": "程普",   "owner": 0, "faction": "sunce",    "strength": 3, "move": 2, "attack": 3, "type": "将领" },
+  "3":  { "name": "黄盖",   "owner": 0, "faction": "sunce",    "strength": 3, "move": 2, "attack": 2, "type": "将领" },
+  "4":  { "name": "韩当",   "owner": 0, "faction": "sunce",    "strength": 2, "move": 2, "attack": 2, "type": "将领" },
+  "5":  { "name": "吴景",   "owner": 0, "faction": "sunce",    "strength": 2, "move": 2, "attack": 2, "type": "丹阳太守" },
+  "6":  { "name": "孙贲",   "owner": 0, "faction": "sunce",    "strength": 2, "move": 2, "attack": 1, "type": "将领" },
+  "7":  { "name": "朱治",   "owner": 0, "faction": "sunce",    "strength": 2, "move": 2, "attack": 1, "type": "将领" },
+  "8":  { "name": "吕范",   "owner": 0, "faction": "sunce",    "strength": 1, "move": 2, "attack": 1, "type": "谋士" },
+
+  "9":  { "name": "刘繇",   "owner": 1, "faction": "liuyao",   "strength": 2, "move": 2, "attack": 1, "type": "扬州刺史" },
+  "10": { "name": "太史慈", "owner": 1, "faction": "liuyao",   "strength": 3, "move": 3, "attack": 3, "type": "将领" },
+  "11": { "name": "张英",   "owner": 1, "faction": "liuyao",   "strength": 2, "move": 2, "attack": 2, "type": "将领" },
+  "12": { "name": "陈横",   "owner": 1, "faction": "liuyao",   "strength": 1, "move": 2, "attack": 1, "type": "将领" },
+  "13": { "name": "于糜",   "owner": 1, "faction": "liuyao",   "strength": 1, "move": 2, "attack": 1, "type": "将领" },
+  "14": { "name": "樊能",   "owner": 1, "faction": "liuyao",   "strength": 1, "move": 2, "attack": 1, "type": "将领" },
+  "15": { "name": "笮融",   "owner": 1, "faction": "zerong",   "strength": 2, "move": 2, "attack": 2, "type": "豪强" },
+  "16": { "name": "严白虎", "owner": 1, "faction": "yanbaihu", "strength": 2, "move": 2, "attack": 1, "type": "吴郡豪强" },
+  "17": { "name": "严舆",   "owner": 1, "faction": "yanbaihu", "strength": 1, "move": 2, "attack": 1, "type": "豪强" },
+  "18": { "name": "王朗",   "owner": 1, "faction": "wanglang", "strength": 2, "move": 2, "attack": 1, "type": "会稽太守" },
+  "19": { "name": "周昕",   "owner": 1, "faction": "wanglang", "strength": 1, "move": 2, "attack": 1, "type": "将领" }
+}

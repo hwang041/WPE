@@ -1,0 +1,10 @@
+{
+  "subsystem": "movement",
+  "id": "roadNetwork",
+  "version": "1.0.0",
+  "status": "stable",
+  "description": "点对点道路移动：逐段走，每段 1 点，禁入敌占节点",
+  "requires": ["map"],
+  "provides": ["roadReachability"],
+  "configSchema": {}
+}

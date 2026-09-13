@@ -28,7 +28,9 @@ public sealed class GameEngine
         Hook = hook;
         if (string.IsNullOrEmpty(State.CurrentPhase) && Def.PhaseOrder.Count > 0)
             State.CurrentPhase = Def.PhaseOrder[0];
+        Host.Rng = new SeededRandom(Def.Seed);
         SeedCoreEffects();
+        RunSetup();
         ApplyTurnReset();
     }
 
@@ -41,6 +43,7 @@ public sealed class GameEngine
         State.GameOver = false;
         State.ResultMessage = null;
         _rollCounter = 0;
+        Host.Rng = new SeededRandom(Def.Seed);
     }
 
     // ---- expressions ----
@@ -148,6 +151,9 @@ public sealed class GameEngine
     // ---- validation & application ----
 
     public bool CanApply(string moveId, CounterState? counter, HexCoord? pos, CounterState? target, out string? error)
+        => CanApply(moveId, counter, pos, target, null, out error);
+
+    public bool CanApply(string moveId, CounterState? counter, HexCoord? pos, CounterState? target, CardState? card, out string? error)
     {
         error = null;
         if (GameOver) { error = "游戏已结束"; return false; }
@@ -161,8 +167,23 @@ public sealed class GameEngine
         if (move.NeedsCounter && counter == null) { error = "需要选择算子"; return false; }
         if (move.NeedsPosition && pos == null) { error = "需要目标位置"; return false; }
         if (move.NeedsTargetCounter && target == null) { error = "需要目标算子"; return false; }
+        if (move.NeedsCard && card == null) { error = "需要选择一张牌"; return false; }
+
+        // stacking rule: a cell may hold at most MaxPerHex counters (0 = unlimited)
+        if (move.NeedsPosition && pos.HasValue && counter != null && counter.OnBoard &&
+            Host.Stacking is { MaxPerHex: > 0 } stack)
+        {
+            var occupants = State.CountersOnBoard().Count(c => c.Id != counter.Id && c.Hex == pos.Value);
+            if (occupants >= stack.MaxPerHex) { error = "该格已堆满"; return false; }
+        }
 
         var ctx = MakeContext(counter, pos, target);
+        if (card != null)
+        {
+            if (card.Zone != CardZone.Hand || card.Owner != State.ActivePlayer) { error = "该牌不在你手上"; return false; }
+            if (!Host.Cards.ContainsKey(card.DefId)) { error = "未知卡牌"; return false; }
+            ctx.Vars["card"] = card;
+        }
         if (!string.IsNullOrEmpty(move.CounterFilter) && counter != null && !GetExpr(move.CounterFilter).EvalBool(ctx))
         { error = "该算子不满足行动条件"; return false; }
         if (!string.IsNullOrEmpty(move.TargetFilter) && target != null && !GetExpr(move.TargetFilter).EvalBool(ctx))
@@ -174,15 +195,28 @@ public sealed class GameEngine
     }
 
     public bool Apply(string moveId, CounterState? counter, HexCoord? pos, CounterState? target)
+        => Apply(moveId, counter, pos, target, null);
+
+    public bool Apply(string moveId, CounterState? counter, HexCoord? pos, CounterState? target, CardState? card)
     {
-        if (!CanApply(moveId, counter, pos, target, out var error))
+        if (!CanApply(moveId, counter, pos, target, card, out var error))
         {
             State.LogMessage($"被拒绝: {error}");
             return false;
         }
         var move = Def.Moves[moveId];
         var ctx = MakeContext(counter, pos, target);
+        if (card != null) ctx.Vars["card"] = card;
         Hook?.OnBeforeMove(ctx, moveId);
+
+        if (move.NeedsCard && card != null && Host.Cards.TryGetValue(card.DefId, out var cdef))
+        {
+            card.Zone = CardZone.Played;
+            ctx.Vars["cardValue"] = cdef.Value;
+            ctx.Vars["cardKind"] = cdef.Kind;
+            State.LogMessage($"出牌 [{cdef.Name}]");
+            ExecuteEffects(ctx, cdef.Effects);
+        }
 
         if (move.Roll != null) ExecuteRoll(ctx, move.Roll);
         string? tableResult = null;
@@ -233,11 +267,11 @@ public sealed class GameEngine
                     if (Host.Movement.Reachable(unit, this).Count > 0) return true;
                     continue;
                 }
-                var gm = State.Map;
-                if (gm != null)
-                    foreach (var n in HexMath.Neighbors(unit.Hex, gm.PointyTop))
+                var map = State.Map;
+                if (map != null)
+                    foreach (var n in map.Neighbors(unit.Hex))
                     {
-                        if (!gm.InBounds(n)) continue;
+                        if (!map.InBounds(n)) continue;
                         if (CanApply(move.Id, unit, n, null, out _)) return true;
                     }
             }
@@ -326,6 +360,58 @@ public sealed class GameEngine
         Host.AddEffect("pass", (ctx, e) => Pass());
         Host.AddEffect("endturn", (ctx, e) => Pass());
         Host.AddEffect("reveal", (ctx, e) => { });
+        Host.AddEffect("roll", RollEffect);
+    }
+
+    /// <summary>Roll dice into a state variable (e.g. a random event / reaction check).</summary>
+    private void RollEffect(RuleContext ctx, EffectDef e)
+    {
+        var count = e.Count > 0 ? e.Count : 1;
+        var sides = e.Sides > 0 ? e.Sides : 6;
+        var values = Host.Rng.RollDice(count, sides);
+        var sum = values.Sum();
+        State.LastDice.Clear();
+        for (int i = 0; i < values.Length; i++)
+            State.LastDice.Add(new DieResult(0, i, sides, values[i]));
+        State.Vars[e.Key] = (double)sum;
+        State.LogMessage($"掷骰 {count}d{sides} = {sum} ({string.Join(",", values)})");
+    }
+
+    private void RunSetup()
+    {
+        if (Def.Setup.Count == 0) return;
+        var ctx = MakeContext(null, null, null);
+        ExecuteEffects(ctx, Def.Setup);
+    }
+
+    // ---- cards ----
+
+    /// <summary>Cards currently in a player's hand (insertion order).</summary>
+    public IReadOnlyList<CardState> Hand(int player) => State.HandOf(player).ToList();
+
+    /// <summary>Whether the given card can be played now (finds the legal NeedsCard move).</summary>
+    public bool CanPlayCard(CardState card, out string? error)
+    {
+        foreach (var move in Def.Moves.Values)
+        {
+            if (!move.NeedsCard) continue;
+            if (!string.IsNullOrEmpty(move.Phase) && move.Phase != State.CurrentPhase) continue;
+            return CanApply(move.Id, null, null, null, card, out error);
+        }
+        error = "当前阶段没有出牌行动";
+        return false;
+    }
+
+    /// <summary>Play the given card via the first legal NeedsCard move.</summary>
+    public bool PlayCard(CardState card)
+    {
+        foreach (var move in Def.Moves.Values)
+        {
+            if (!move.NeedsCard) continue;
+            if (!string.IsNullOrEmpty(move.Phase) && move.Phase != State.CurrentPhase) continue;
+            return Apply(move.Id, null, null, null, card);
+        }
+        return false;
     }
 
     private void MoveEffect(RuleContext ctx, EffectDef e)
@@ -341,8 +427,8 @@ public sealed class GameEngine
     {
         var c = Select(ctx, e);
         if (c == null || !c.OnBoard) return;
-        var gm = State.Map;
-        if (gm == null) return;
+        var map = State.Map;
+        if (map == null) return;
         // reference is the other side: the retreating counter moves away from its opponent
         var refCounter = Select(ctx, e.Counter == "target" ? "counter" : "target");
         if (refCounter == null || !refCounter.OnBoard) return;
@@ -353,12 +439,12 @@ public sealed class GameEngine
         for (int s = 0; s < steps && c.OnBoard; s++)
         {
             var here = c.Hex;
-            var hereDist = HexMath.Distance(here, refHex);
-            var candidates = HexMath.Neighbors(here, gm.PointyTop)
-                .Where(n => gm.InBounds(n)
-                         && HexMath.Distance(n, refHex) > hereDist
+            var hereDist = map.Distance(here, refHex);
+            var candidates = map.Neighbors(here)
+                .Where(n => map.InBounds(n)
+                         && map.Distance(n, refHex) > hereDist
                          && !State.CountersOnBoard().Any(x => !ReferenceEquals(x, c) && x.Hex == n))
-                .OrderByDescending(n => HexMath.Distance(n, refHex))
+                .OrderByDescending(n => map.Distance(n, refHex))
                 .ThenBy(n => n.Q).ThenBy(n => n.R)
                 .ToList();
             if (candidates.Count == 0) break;
@@ -435,8 +521,8 @@ public sealed class GameEngine
     /// <summary>Spawn reinforcements whose entryTurn == current turn at their entry hex (nearest free if occupied).</summary>
     public void SpawnReinforcements()
     {
-        var gm = State.Map;
-        if (gm == null) return;
+        var map = State.Map;
+        if (map == null) return;
         var used = State.CountersOnBoard().Select(c => c.Hex).ToHashSet();
 
         foreach (var c in State.Counters)
@@ -448,7 +534,7 @@ public sealed class GameEngine
 
             var start = new HexCoord(qr[0], qr[1]);
             var pos = start;
-            if (used.Contains(start) || !gm.InBounds(start))
+            if (used.Contains(start) || !map.InBounds(start))
             {
                 var queue = new Queue<HexCoord>();
                 var visited = new HashSet<HexCoord>();
@@ -457,12 +543,12 @@ public sealed class GameEngine
                 while (queue.Count > 0)
                 {
                     var cur = queue.Dequeue();
-                    if (!used.Contains(cur) && gm.InBounds(cur))
+                    if (!used.Contains(cur) && map.InBounds(cur))
                     {
                         pos = cur; found = true; break;
                     }
-                    foreach (var n in HexMath.Neighbors(cur, gm.PointyTop))
-                        if (gm.InBounds(n) && visited.Add(n))
+                    foreach (var n in map.Neighbors(cur))
+                        if (map.InBounds(n) && visited.Add(n))
                             queue.Enqueue(n);
                 }
                 if (!found) continue;

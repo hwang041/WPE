@@ -1,3 +1,5 @@
+using System.Text;
+using Wpe.Render;
 using Wpe.Rules.Platform;
 
 namespace Wpe.App;
@@ -9,13 +11,22 @@ internal static class Program
     {
         ApplicationConfiguration.Initialize();
 
-        var gameDir = args.Length > 0
-            ? Path.GetFullPath(args[0])
+        string? shotPath = null, uitestPath = null;
+        var positional = new List<string>();
+        for (int i = 0; i < args.Length; i++)
+        {
+            if (args[i] == "--shot" && i + 1 < args.Length) shotPath = args[++i];
+            else if (args[i] == "--uitest" && i + 1 < args.Length) uitestPath = args[++i];
+            else positional.Add(args[i]);
+        }
+
+        var gameDir = positional.Count > 0
+            ? Path.GetFullPath(positional[0])
             : ResolveGameDir();
 
         if (!Directory.Exists(gameDir))
         {
-            MessageBox.Show($"找不到游戏包目录: {gameDir}\n用法: Wpe.App <games/xxx>", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show($"找不到游戏包目录: {gameDir}\n用法: Wpe.App <games/xxx> [--shot out.png] [--uitest out.txt]", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return;
         }
 
@@ -28,12 +39,31 @@ internal static class Program
                 return;
             }
             var game = result.Game!;
+
+            if (shotPath != null) { Shoot(game, shotPath); return; }
+            if (uitestPath != null)
+            {
+                using var form = new MainForm(game.State, game.Engine, game.GameDir, headless: true);
+                File.WriteAllText(Path.GetFullPath(uitestPath), form.SmokeTest(), Encoding.UTF8);
+                return;
+            }
+
             Application.Run(new MainForm(game.State, game.Engine, game.GameDir));
         }
         catch (Exception ex)
         {
             MessageBox.Show(ex.ToString(), "启动失败", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
+    }
+
+    /// <summary>Headless board render to PNG (grid or point-to-point).</summary>
+    private static void Shoot(LoadedGame game, string outPath)
+    {
+        var map = game.State.Map ?? throw new InvalidOperationException("该游戏没有地图");
+        using var bmp = MapRenderer.Render(map, game.State.CountersOnBoard().ToList(), showHexNumbers: false,
+            factions: game.Def.Factions, nodeTypes: game.Def.NodeTypes, control: game.State.Control);
+        CounterRenderer.SavePng(bmp, Path.GetFullPath(outPath));
+        Console.WriteLine($"shot saved: {Path.GetFullPath(outPath)} ({bmp.Width}x{bmp.Height})");
     }
 
     private static string ResolveGameDir()

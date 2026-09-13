@@ -1,0 +1,7 @@
+{
+  "subsystem": "stacking",
+  "id": "unlimited",
+  "version": "1.0.0",
+  "status": "stable",
+  "description": "无限堆叠：一格可放任意数量算子（默认预设）"
+}

@@ -1,17 +1,22 @@
 using SkiaSharp;
+using Wpe.Core.Definition;
 using Wpe.Core.Model;
 
 namespace Wpe.Render;
 
 /// <summary>
 /// Standalone map renderer for quick generation / verification (`wpe overlay`):
-/// renders the full hex grid (terrain/rivers/victory/hex numbers) plus optional
-/// counter chips to a PNG-ready bitmap, without any interactive GUI.
+/// renders a hex grid (terrain/rivers/victory/hex numbers) or a point-to-point map
+/// (nodes/roads/rivers) plus optional counter chips to a PNG-ready bitmap, without
+/// any interactive GUI. Game-specific look is passed in via the faction/node-type palettes.
 /// </summary>
 public static class MapRenderer
 {
-    public static SKBitmap Render(GridMap map, IReadOnlyList<CounterState>? counters = null,
-        bool showHexNumbers = true, int targetWidth = 1600)
+    public static SKBitmap Render(IMap map, IReadOnlyList<CounterState>? counters = null,
+        bool showHexNumbers = true, int targetWidth = 1600,
+        IReadOnlyDictionary<string, FactionDef>? factions = null,
+        IReadOnlyDictionary<string, NodeTypeDef>? nodeTypes = null,
+        IReadOnlyDictionary<string, string>? control = null)
     {
         var area = map.TotalArea;
         float scale = Math.Clamp(targetWidth / area.Width, 0.02f, 2f);
@@ -23,19 +28,27 @@ public static class MapRenderer
         canvas.Scale(scale);
         canvas.Translate(-area.Left, -area.Top);
 
-        GridMapPainter.DrawGrid(canvas, map, showHexNumbers);
-
-        if (counters != null)
+        if (map is GridMap grid)
         {
-            var size = map.HexRadius * 1.15f;
-            var half = size / 2f;
-            foreach (var c in counters.Where(c => c.OnBoard))
+            GridMapPainter.DrawGrid(canvas, grid, showHexNumbers);
+            if (counters != null)
             {
-                var center = map.CenterOf(c.Hex);
-                var rect = new SKRect(center.X - half, center.Y - half, center.X + half, center.Y + half);
-                using var chip = CounterRenderer.Render(c, new CounterRenderOptions { Width = 96, Height = 96 }, back: c.IsBack);
-                canvas.DrawBitmap(chip, rect);
+                var size = map.CellRadius * 1.15f;
+                var half = size / 2f;
+                foreach (var c in counters.Where(c => c.OnBoard))
+                {
+                    var center = map.CenterOf(c.Hex);
+                    var rect = new SKRect(center.X - half, center.Y - half, center.X + half, center.Y + half);
+                    using var chip = CounterRenderer.Render(c, new CounterRenderOptions { Width = 96, Height = 96 }, back: c.IsBack);
+                    canvas.DrawBitmap(chip, rect);
+                }
             }
+        }
+        else if (map is SpaceMap space)
+        {
+            SpaceMapPainter.Draw(canvas, space, counters, control, factions, nodeTypes);
+            if (counters != null)
+                SpaceMapPainter.DrawCounters(canvas, space, counters, space.NodeRadius * 1.15f);
         }
         return bmp;
     }

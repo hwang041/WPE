@@ -1,6 +1,9 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Wpe.Core.Definition;
+using Wpe.Core.Engine;
+using Wpe.Core.Expressions;
 using Wpe.Core.Model;
 using Wpe.Render;
 using Wpe.Rules;
@@ -23,6 +26,8 @@ public static class Program
         {
             "play" => Play(args),
             "verify" => Verify(args),
+            "cards" => Cards(args),
+            "demo" => Demo(args),
             "rule" => Rule(args),
             "counters" => Counters(args),
             "overlay" => Overlay(args),
@@ -46,6 +51,8 @@ public static class Program
         Console.WriteLine("用法:");
         Console.WriteLine("  wpe verify <游戏包目录>   校验游戏包（配置/表达式/变体组合），报错带位置");
         Console.WriteLine("  wpe play   <游戏包目录>   无头跑一局（双方自动行动），回归冒烟");
+        Console.WriteLine("  wpe cards  <游戏包目录>   打印牌库/手牌（卡驱游戏）");
+        Console.WriteLine("  wpe demo   <游戏包目录>   脚本化自检卡牌系统（行动牌/事件牌结算）");
         Console.WriteLine("  wpe counters <游戏包目录> [输出目录]   批量生成白板算子 PNG（正面+受损面+总表）");
         Console.WriteLine("  wpe overlay <游戏包目录> [输出.png] [--nums]   渲染地图（地形/河流/胜利点/算子）PNG");
         Console.WriteLine("  wpe river  <游戏包目录> <\"q,r\" q,r ...> [--fords 0,2] [--append]   按六角格路径生成河流边");
@@ -112,9 +119,16 @@ public static class Program
         {
             guard++;
             if (engine.GameOver) break;
+            if (state.CurrentPhase == "card")
+            {
+                var card = engine.Hand(state.ActivePlayer).FirstOrDefault(c => engine.CanPlayCard(c, out _));
+                if (card != null) { engine.PlayCard(card); continue; }
+                if (!engine.Apply("endphase", null, null, null)) break; // no playable card and phase locked
+                continue;
+            }
             if (state.CurrentPhase != "action")
             {
-                engine.Apply("endphase", null, null, null);
+                if (!engine.Apply("endphase", null, null, null)) break;
                 continue;
             }
             var units = state.CountersOnBoard()
@@ -142,13 +156,13 @@ public static class Program
                     var map = state.Map;
                     var candidates = map == null
                         ? new List<HexCoord>()
-                        : HexMath.Neighbors(u.Hex, map.PointyTop)
+                        : map.Neighbors(u.Hex)
                             .Where(n => engine.CanApply(mv.Id, u, n, null, out _))
                             .ToList();
                     if (candidates.Count > 0)
                     {
                         var pick = enemies.Count > 0
-                            ? candidates.OrderBy(h => enemies.Min(e => HexMath.Distance(h, e.Hex))).First()
+                            ? candidates.OrderBy(h => enemies.Min(e => map.Distance(h, e.Hex))).First()
                             : candidates[0];
                         engine.Apply(mv.Id, u, pick, null);
                         acted = true; break;
@@ -171,6 +185,114 @@ public static class Program
         Console.WriteLine("--- LOG (末尾 30 条) ---");
         foreach (var l in state.Log.TakeLast(30)) Console.WriteLine("  " + l);
         return 0;
+    }
+
+    // ---- cards ----
+
+    private static int Cards(string[] args)
+    {
+        if (args.Length < 2) { Console.Error.WriteLine("cards 需要一个游戏包目录"); return 1; }
+        var dir = Path.GetFullPath(args[1]);
+        var result = PackageLoader.Load(dir);
+        if (!result.Ok)
+        {
+            foreach (var e in result.Errors) Console.Error.WriteLine($"  [error] {e}");
+            return 1;
+        }
+        var game = result.Game!;
+        var state = game.State;
+        Console.WriteLine($"== {game.Def.Name} == cards={state.Cards.Count} " +
+            $"deck={state.Cards.Count(c => c.Zone == CardZone.Deck)} " +
+            $"played={state.Cards.Count(c => c.Zone == CardZone.Played)} " +
+            $"discard={state.Cards.Count(c => c.Zone == CardZone.Discard)} " +
+            $"phase={state.CurrentPhase} player={state.ActivePlayer + 1}");
+        for (int p = 0; p < state.PlayerCount; p++)
+        {
+            Console.WriteLine($"  玩家{p + 1} 手牌:");
+            foreach (var c in state.HandOf(p))
+            {
+                game.Host.Cards.TryGetValue(c.DefId, out var def);
+                Console.WriteLine($"    [{c.Id}] {def?.Name ?? c.DefId} ({def?.Kind} {def?.Value}) {def?.Text}");
+            }
+        }
+        return 0;
+    }
+
+    // ---- demo (scripted card-system self-check) ----
+
+    private static int Demo(string[] args)
+    {
+        if (args.Length < 2) { Console.Error.WriteLine("demo 需要一个游戏包目录"); return 1; }
+        var dir = Path.GetFullPath(args[1]);
+        var result = PackageLoader.Load(dir);
+        if (!result.Ok)
+        {
+            foreach (var e in result.Errors) Console.Error.WriteLine($"  [error] {e}");
+            return 1;
+        }
+        var game = result.Game!;
+        var engine = game.Engine;
+        var state = game.State;
+        int fail = 0;
+        void Check(bool ok, string msg) { Console.WriteLine($"  [{(ok ? "ok" : "FAIL")}] {msg}"); if (!ok) fail++; }
+
+        string Kind(CardState c) => game.Host.Cards.TryGetValue(c.DefId, out var d) ? d.Kind : "?";
+        string Name(CardState c) => game.Host.Cards.TryGetValue(c.DefId, out var d) ? d.Name : c.DefId;
+        double Value(CardState c) => game.Host.Cards.TryGetValue(c.DefId, out var d) ? d.Value : 0;
+        double Var(string k) => state.Vars.TryGetValue(k, out var v) ? ValueAccessor.AsNumber(v) : 0;
+
+        void PlayAndReport(CardState card)
+        {
+            var kind = Kind(card);
+            var owner = card.Owner;
+            var beforeHand = state.HandOf(owner).Count();
+            var beforeVars = state.Vars.ToDictionary(kv => kv.Key, kv => kv.Value);
+            if (!engine.PlayCard(card)) { Check(false, $"{kind}牌 [{Name(card)}] 无法出牌"); return; }
+            var afterHand = state.HandOf(owner).Count();
+            var changed = state.Vars
+                .Where(kv => !beforeVars.TryGetValue(kv.Key, out var ov) || !Equals(ov?.ToString(), kv.Value?.ToString()))
+                .Select(kv => kv.Key).ToList();
+            bool effectRan = card.Zone == CardZone.Played && (changed.Count > 0 || afterHand != beforeHand);
+            Check(effectRan, $"{kind}牌 [{Name(card)}] 结算: 手牌 {beforeHand}->{afterHand}, 变量变化=[{string.Join(",", changed)}]");
+            if (kind == "action")
+                Check(Var("activations") == Value(card), $"行动牌点数→激活 activations={Var("activations")} (期望 {Value(card)})");
+        }
+
+        Console.WriteLine($"== demo {game.Def.Name} ==");
+        Check(state.Cards.Count > 0, $"牌库构建 cards={state.Cards.Count} deck={state.Cards.Count(c => c.Zone == CardZone.Deck)}");
+        var p1 = state.ActivePlayer;
+        Check(state.HandOf(p1).Count() > 0, $"发牌 玩家{p1 + 1} 手牌={state.HandOf(p1).Count()}");
+
+        // prefer an event card first so the event-card path is exercised
+        var hand = engine.Hand(p1);
+        var first = hand.FirstOrDefault(c => Kind(c) == "event") ?? hand.FirstOrDefault(c => Kind(c) == "action");
+        if (first != null && engine.CanPlayCard(first, out _)) PlayAndReport(first);
+        else Check(false, "当前手牌没有可出的牌");
+
+        if (first != null && first.Zone == CardZone.Played)
+        {
+            AdvanceToNextCardPhase(engine, state);
+            var np = state.ActivePlayer;
+            bool wantEvent = Kind(first) == "action";
+            var npHand = engine.Hand(np);
+            var second = npHand.FirstOrDefault(c => Kind(c) == (wantEvent ? "event" : "action"))
+                      ?? npHand.FirstOrDefault(c => Kind(c) is "action" or "event");
+            if (second != null && engine.CanPlayCard(second, out _)) PlayAndReport(second);
+            else Console.WriteLine("  [skip] 下一位玩家手牌无可出牌");
+        }
+
+        Console.WriteLine(fail == 0 ? "DEMO PASS" : "DEMO FAIL");
+        return fail == 0 ? 0 : 2;
+    }
+
+    private static void AdvanceToNextCardPhase(GameEngine engine, GameState state)
+    {
+        int start = state.ActivePlayer;
+        for (int i = 0; i < 8; i++)
+        {
+            if (state.CurrentPhase == "card" && state.ActivePlayer != start) return;
+            if (!engine.Apply("endphase", null, null, null)) return;
+        }
     }
 
     // ---- rule ----
@@ -273,13 +395,21 @@ public static class Program
         }
         var game = result.Game!;
         var map = game.State.Map;
-        if (map == null) { Console.Error.WriteLine("该游戏没有网格地图"); return 1; }
+        if (map == null) { Console.Error.WriteLine("该游戏没有地图"); return 1; }
         var outPath = args.Length > 2 ? Path.GetFullPath(args[2]) : Path.Combine(game.GameDir, "map-overlay.png");
         var nums = args.Contains("--nums");
-        using var bmp = MapRenderer.Render(map, game.State.CountersOnBoard().ToList(), showHexNumbers: nums);
+        using var bmp = MapRenderer.Render(map, game.State.CountersOnBoard().ToList(), showHexNumbers: nums,
+            factions: game.Def.Factions, nodeTypes: game.Def.NodeTypes, control: game.State.Control);
         CounterRenderer.SavePng(bmp, outPath);
-        var sizes = GridMapPainter.RiverComponentSizes(map);
-        Console.WriteLine($"overlay saved: {outPath} ({bmp.Width}x{bmp.Height}) riverEdges={map.RiverEdgeList().Count()} riverChains={sizes.Count} sizes=[{string.Join(",", sizes)}]");
+        if (map is GridMap grid)
+        {
+            var sizes = GridMapPainter.RiverComponentSizes(grid);
+            Console.WriteLine($"overlay saved: {outPath} ({bmp.Width}x{bmp.Height}) riverEdges={grid.RiverEdgeList().Count()} riverChains={sizes.Count} sizes=[{string.Join(",", sizes)}]");
+        }
+        else if (map is SpaceMap space)
+        {
+            Console.WriteLine($"overlay saved: {outPath} ({bmp.Width}x{bmp.Height}) nodes={space.Nodes.Count} edges={space.Edges.Count}");
+        }
         return 0;
     }
 

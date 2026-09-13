@@ -1,0 +1,29 @@
+{
+  "combat": {
+    "rowExpr": "effStr(counter) - effStr(target) - terrainDefense(target)",
+    "colExpr": "roll",
+    "resultVar": "result",
+    "table": {
+      "id": "combat",
+      "rows": [
+        {
+          "min": -99,
+          "max": 0,
+          "columns": [
+            { "min": 1, "max": 4, "result": "0" },
+            { "min": 5, "max": 6, "result": "D" }
+          ]
+        },
+        {
+          "min": 1,
+          "max": 99,
+          "columns": [
+            { "min": 1, "max": 2, "result": "0" },
+            { "min": 3, "max": 5, "result": "D" },
+            { "min": 6, "max": 6, "result": "E" }
+          ]
+        }
+      ]
+    }
+  }
+}

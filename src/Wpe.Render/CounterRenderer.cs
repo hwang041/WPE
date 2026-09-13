@@ -40,6 +40,9 @@ public static class CounterRenderer
 
     public static SKColor FactionColor(CounterState c)
     {
+        // game palette wins (the loader resolves faction -> "color" from game.json `factions`)
+        var hex = c.AttributeStr("color", "");
+        if (!string.IsNullOrEmpty(hex) && SKColor.TryParse(hex, out var custom)) return custom;
         var f = c.AttributeStr("faction");
         if (FactionColors.TryGetValue(f, out var col)) return col;
         var owner = c.AttributeInt("owner", -1);
@@ -150,7 +153,8 @@ public static class CounterRenderer
 
     private static SKTypeface? _cjk;
 
-    private static SKTypeface CjkTypeface()
+    /// <summary>Shared CJK-capable typeface (falls back to the default if none found).</summary>
+    public static SKTypeface CjkTypeface()
     {
         if (_cjk != null) return _cjk;
         foreach (var name in new[] { "Microsoft YaHei UI", "Microsoft YaHei", "SimHei", "Noto Sans CJK SC", "Source Han Sans SC" })

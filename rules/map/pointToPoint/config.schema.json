@@ -1,0 +1,7 @@
+{
+  "subsystem": "map",
+  "id": "pointToPoint",
+  "version": "1.0.0",
+  "status": "stable",
+  "description": "数据驱动点对点地图（城镇节点 + 道路），节点城防/势力"
+}

@@ -9,8 +9,11 @@ namespace Wpe.Core.Model;
 public sealed class GameState
 {
     public GameDefinition Def { get; }
-    public GridMap? Map { get; set; }
+    public IMap? Map { get; set; }
     public List<CounterState> Counters { get; } = new();
+
+    /// <summary>All card instances (deck/hand/discard/played) for card-driven games.</summary>
+    public List<CardState> Cards { get; } = new();
 
     public int ActivePlayer { get; set; }
     public int TurnNumber { get; set; } = 1;
@@ -22,6 +25,9 @@ public sealed class GameState
     /// <summary>Game-defined variables (victory points, flag markers, ...).</summary>
     public Dictionary<string, object> Vars { get; } = new();
 
+    /// <summary>Persistent control map: key -> controlling faction/owner (e.g. a point-to-point node id).</summary>
+    public Dictionary<string, string> Control { get; } = new();
+
     public List<string> Log { get; } = new();
     public List<DieResult> LastDice { get; } = new();
 
@@ -30,6 +36,9 @@ public sealed class GameState
     public GameState(GameDefinition def) => Def = def;
 
     public IEnumerable<CounterState> CountersOnBoard() => Counters.Where(c => c.OnBoard);
+
+    public IEnumerable<CardState> HandOf(int player)
+        => Cards.Where(c => c.Owner == player && c.Zone == CardZone.Hand);
 
     public CounterState? CounterAt(HexCoord c) => Counters.FirstOrDefault(x => x.OnBoard && x.Hex == c);
 
@@ -49,8 +58,11 @@ public sealed class GameState
             ResultMessage = ResultMessage
         };
         foreach (var (k, v) in Vars) c.Vars[k] = v;
+        foreach (var (k, v) in Control) c.Control[k] = v;
         c.Log.AddRange(Log);
         c.LastDice.AddRange(LastDice);
+        foreach (var card in Cards)
+            c.Cards.Add(new CardState { Id = card.Id, DefId = card.DefId, Deck = card.Deck, Owner = card.Owner, Zone = card.Zone });
         foreach (var s in Counters)
         {
             var cc = new CounterState { Id = s.Id, Side = s.Side, Position = s.Position, RotationDeg = s.RotationDeg };

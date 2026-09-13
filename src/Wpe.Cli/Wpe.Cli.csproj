@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Wpe.Cli</RootNamespace>
+    <AssemblyName>wpe</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Wpe.Core\Wpe.Core.csproj" />
+    <ProjectReference Include="..\Wpe.Rules\Wpe.Rules.csproj" />
+    <ProjectReference Include="..\Wpe.Render\Wpe.Render.csproj" />
+  </ItemGroup>
+
+</Project>

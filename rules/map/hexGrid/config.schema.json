@@ -1,0 +1,7 @@
+{
+  "subsystem": "map",
+  "id": "hexGrid",
+  "version": "1.0.0",
+  "status": "stable",
+  "description": "数据驱动六角格地图（地形/河流/胜利点）"
+}

@@ -1,0 +1,21 @@
+{
+  "subsystem": "combat",
+  "id": "crTable",
+  "version": "1.0.0",
+  "status": "stable",
+  "description": "战力比 CRT：战力比行 × 骰子列 → 结果码",
+  "configFile": "combat.json",
+  "requires": ["dice"],
+  "provides": ["combatResolution"],
+  "configSchema": {
+    "<combatId>": {
+      "rowExpr": "计算行(战力比)的表达式，如 effStr(counter)/effStr(target)",
+      "colExpr": "计算列(骰子)的表达式，如 roll",
+      "resultVar": "结果码存入的变量名(默认 result)",
+      "table": {
+        "id": "表名",
+        "rows": "[{min,max,columns:[{min,max,result}]}] 区间行 × 区间列 → 结果码"
+      }
+    }
+  }
+}

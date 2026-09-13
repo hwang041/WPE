@@ -1,0 +1,18 @@
+{
+  "subsystem": "counter",
+  "id": "generic",
+  "version": "1.0.0",
+  "status": "stable",
+  "description": "通用算子目录：units.json 键 → 基础属性",
+  "configFile": "units.json",
+  "requires": [],
+  "provides": ["roster"],
+  "configSchema": {
+    "<算子键>": {
+      "name": "显示名",
+      "type": "类型(general/infantry/...)",
+      "strength": "战斗力(攻防共用)",
+      "move": "移动力"
+    }
+  }
+}

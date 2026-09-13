@@ -1,0 +1,6 @@
+﻿{
+  "a1": { "name": "甲 1", "type": "infantry", "strength": 3, "move": 4 },
+  "a2": { "name": "甲 2", "type": "infantry", "strength": 3, "move": 4 },
+  "b1": { "name": "乙 1", "type": "infantry", "strength": 3, "move": 4 },
+  "b2": { "name": "乙 2", "type": "infantry", "strength": 3, "move": 4 }
+}

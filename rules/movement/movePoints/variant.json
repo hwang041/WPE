@@ -1,0 +1,15 @@
+{
+  "subsystem": "movement",
+  "id": "movePoints",
+  "version": "1.0.0",
+  "status": "stable",
+  "description": "行动点移动：每格地形费 + 河流费，BFS 可达区域",
+  "configFile": "movement.json",
+  "requires": ["map"],
+  "provides": ["reachability", "moveCost", "riverCost"],
+  "configSchema": {
+    "terrainCost": "地形字母 -> 进入该格移动费",
+    "terrainDefenseBonus": "地形字母 -> 防御修正(预留)",
+    "riverCrossCost": "跨河额外移动费(渡口为0)"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "subsystem": "scenario",
+  "id": "generic",
+  "version": "1.0.0",
+  "status": "stable",
+  "description": "通用剧本：选算子 + 势力/数值覆盖 + 部署/援军",
+  "configFile": "scenario.json",
+  "requires": ["map"],
+  "provides": ["deployment", "reinforcements"],
+  "configSchema": {
+    "units": [
+      {
+        "counter": "算子键(对应 units.json)",
+        "owner": "玩家编号(0起)",
+        "hex": "[q,r] 初始部署格",
+        "entryTurn": "援军进场回合(可选)",
+        "entryHex": "[q,r] 援军进场格(可选)"
+      }
+    ]
+  }
+}

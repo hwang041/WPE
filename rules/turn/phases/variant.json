@@ -1,0 +1,10 @@
+{
+  "subsystem": "turn",
+  "id": "phases",
+  "version": "1.0.0",
+  "status": "stable",
+  "description": "IGO-UGO 阶段回合：回合重置按 game.json turnReset",
+  "configFile": "game.json",
+  "requires": [],
+  "provides": ["turnReset"]
+}

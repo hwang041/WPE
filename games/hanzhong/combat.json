@@ -1,0 +1,47 @@
+{
+  "combat": {
+    "rowExpr": "effStr(counter) / effStr(target)",
+    "colExpr": "roll",
+    "resultVar": "result",
+    "table": {
+      "id": "combat",
+      "rows": [
+        { "min": 3, "max": 999, "columns": [
+          { "min": 1, "max": 1, "result": "Dr" },
+          { "min": 2, "max": 2, "result": "Dr" },
+          { "min": 3, "max": 3, "result": "Dd" },
+          { "min": 4, "max": 4, "result": "Dd" },
+          { "min": 5, "max": 5, "result": "Ddr" },
+          { "min": 6, "max": 6, "result": "E" } ] },
+        { "min": 2, "max": 2.99, "columns": [
+          { "min": 1, "max": 1, "result": "0" },
+          { "min": 2, "max": 2, "result": "0" },
+          { "min": 3, "max": 3, "result": "Dr" },
+          { "min": 4, "max": 4, "result": "Dr" },
+          { "min": 5, "max": 5, "result": "Dd" },
+          { "min": 6, "max": 6, "result": "Ddr" } ] },
+        { "min": 1.5, "max": 1.99, "columns": [
+          { "min": 1, "max": 1, "result": "Ar" },
+          { "min": 2, "max": 2, "result": "Ar" },
+          { "min": 3, "max": 3, "result": "0" },
+          { "min": 4, "max": 4, "result": "0" },
+          { "min": 5, "max": 5, "result": "Dr" },
+          { "min": 6, "max": 6, "result": "Dd" } ] },
+        { "min": 1, "max": 1.49, "columns": [
+          { "min": 1, "max": 1, "result": "Ad" },
+          { "min": 2, "max": 2, "result": "Ad" },
+          { "min": 3, "max": 3, "result": "Ar" },
+          { "min": 4, "max": 4, "result": "Ar" },
+          { "min": 5, "max": 5, "result": "0" },
+          { "min": 6, "max": 6, "result": "Dr" } ] },
+        { "min": -999, "max": 0.99, "columns": [
+          { "min": 1, "max": 1, "result": "Adr" },
+          { "min": 2, "max": 2, "result": "Adr" },
+          { "min": 3, "max": 3, "result": "Ad" },
+          { "min": 4, "max": 4, "result": "Ad" },
+          { "min": 5, "max": 5, "result": "Ar" },
+          { "min": 6, "max": 6, "result": "0" } ] }
+      ]
+    }
+  }
+}

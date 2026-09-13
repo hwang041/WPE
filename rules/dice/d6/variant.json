@@ -1,0 +1,9 @@
+{
+  "subsystem": "dice",
+  "id": "d6",
+  "version": "1.0.0",
+  "status": "stable",
+  "description": "标准 dN 骰子",
+  "requires": [],
+  "provides": ["dice"]
+}

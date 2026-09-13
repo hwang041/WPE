@@ -1,0 +1,17 @@
+﻿{
+  "name": "map",
+  "type": "grid",
+  "hexRadius": 80,
+  "pointyTop": true,
+  "columns": 6,
+  "rows": 6,
+  "terrain": [
+    "PPPPPP",
+    "PPPPPP",
+    "PPPPPP",
+    "PPPPPP",
+    "PPPPPP",
+    "PPPPPP"
+  ],
+  "victoryHexes": [ { "q": 5, "r": 5 } ]
+}

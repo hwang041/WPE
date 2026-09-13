@@ -1,0 +1,156 @@
+{
+  "id": "xuzhou",
+  "name": "徐州之战",
+  "description": "依托 default 规则 · 大地图(24×15) · 势力：曹操(蓝)/陶谦(绿)/刘备(红)/吕布(黄)。剧本一：曹操伐陶谦，刘备来救。胜利：占领彭城/郯城/下邳三处 ★ 之二，或全歼敌军。",
+  "playerCount": 2,
+  "family": "default",
+  "rules": {
+    "map":      { "variant": "hexGrid",    "file": "map.json" },
+    "counter":  { "variant": "generic",    "file": "units.json" },
+    "scenario": { "variant": "generic",    "file": "scenario.json" },
+    "movement": { "variant": "movePoints", "file": "movement.json" },
+    "combat":   { "variant": "crTable",    "file": "combat.json" },
+    "dice":     { "variant": "d6" },
+    "turn":     { "variant": "phases" },
+    "victory":  { "variant": "vpAndSudden" }
+  },
+  "phaseOrder": [ "action", "turnEnd" ],
+  "damage": { "strengthPenalty": 1, "movePenalty": 1 },
+  "autoActWhenExhausted": true,
+  "turnReset": [
+    { "attr": "acted", "value": "0" },
+    { "attr": "moveLeft", "value": "expr:effMove(counter)" }
+  ],
+
+  "moves": {
+    "endphase": {
+      "id": "endphase",
+      "label": "结束阶段",
+      "effects": [ { "effect": "endphase" } ]
+    },
+
+    "move": {
+      "id": "move",
+      "kind": "movement",
+      "label": "移动",
+      "phase": "action",
+      "needsCounter": true,
+      "needsPosition": true,
+      "counterFilter": "counter.owner == me",
+      "validators": [
+        "notacted(counter)",
+        "isfront(counter)",
+        "inBounds(pos)",
+        "dist(counter, pos) == 1",
+        "moveCost(counter, pos) <= counter.moveLeft",
+        "not(occupied(pos))"
+      ],
+      "effects": [
+        { "effect": "move", "counter": "counter", "to": "pos" },
+        { "effect": "setattr", "counter": "counter", "key": "moveLeft", "value": "counter.moveLeft - moveCost(counter, pos)" },
+        { "effect": "log", "text": "'进入' + terrainAt(pos) + '地形(河费' + riverCost(counter, pos) + ')，剩余移动力' + counter.moveLeft" }
+      ]
+    },
+
+    "attack": {
+      "id": "attack",
+      "kind": "combat",
+      "label": "攻击",
+      "phase": "action",
+      "needsCounter": true,
+      "needsTargetCounter": true,
+      "counterFilter": "counter.owner == me",
+      "targetFilter": "target.owner != me",
+      "validators": [
+        "notacted(counter)",
+        "isfront(counter)",
+        "dist(counter, target) == 1"
+      ],
+      "roll": { "var": "roll", "count": 1, "sides": 6, "hand": 0 },
+      "combat": "combat",
+      "effects": [
+        { "effect": "setattr", "counter": "counter", "key": "acted", "value": "1" },
+        { "effect": "log", "text": "'战力比: ' + effStr(counter) + '/' + effStr(target) + ' 骰=' + roll + ' → ' + result" }
+      ],
+      "resultEffects": {
+        "Adr": [
+          { "effect": "flip", "counter": "counter", "when": "isfront(counter)" },
+          { "effect": "remove", "counter": "counter", "when": "isback(counter)" },
+          { "effect": "setattr", "counter": "counter", "key": "moveLeft", "value": "counter.moveLeft - counter.penaltyMove" },
+          { "effect": "retreat", "counter": "counter", "hexes": 1, "onFail": "flip" },
+          { "effect": "log", "text": "'战斗结果：我方受损并后撤！'" }
+        ],
+        "Ad": [
+          { "effect": "flip", "counter": "counter", "when": "isfront(counter)" },
+          { "effect": "remove", "counter": "counter", "when": "isback(counter)" },
+          { "effect": "setattr", "counter": "counter", "key": "moveLeft", "value": "counter.moveLeft - counter.penaltyMove" },
+          { "effect": "log", "text": "'战斗结果：我方受创！'" }
+        ],
+        "Ar": [
+          { "effect": "retreat", "counter": "counter", "hexes": 1, "onFail": "flip" },
+          { "effect": "log", "text": "'战斗结果：我方后撤！'" }
+        ],
+        "0": [
+          { "effect": "log", "text": "'战斗结果：无效果'" }
+        ],
+        "Dr": [
+          { "effect": "retreat", "counter": "target", "hexes": 1, "onFail": "flip" },
+          { "effect": "log", "text": "'战斗结果：敌军后撤！'" }
+        ],
+        "Dd": [
+          { "effect": "flip", "counter": "target", "when": "isfront(target)" },
+          { "effect": "remove", "counter": "target", "when": "isback(target)" },
+          { "effect": "setattr", "counter": "target", "key": "moveLeft", "value": "counter.moveLeft - counter.penaltyMove" },
+          { "effect": "log", "text": "'战斗结果：敌军受创！'" }
+        ],
+        "Ddr": [
+          { "effect": "flip", "counter": "target", "when": "isfront(target)" },
+          { "effect": "remove", "counter": "target", "when": "isback(target)" },
+          { "effect": "setattr", "counter": "target", "key": "moveLeft", "value": "counter.moveLeft - counter.penaltyMove" },
+          { "effect": "retreat", "counter": "target", "hexes": 1, "onFail": "flip" },
+          { "effect": "log", "text": "'战斗结果：敌军受损并后撤！'" }
+        ],
+        "E": [
+          { "effect": "remove", "counter": "target" },
+          { "effect": "log", "text": "'战斗结果：敌军被消灭！'" }
+        ]
+      }
+    },
+
+    "recover": {
+      "id": "recover",
+      "kind": "recover",
+      "label": "恢复",
+      "phase": "action",
+      "needsCounter": true,
+      "counterFilter": "counter.owner == me",
+      "validators": [ "notacted(counter)", "isback(counter)" ],
+      "effects": [
+        { "effect": "setside", "counter": "counter", "value": "front" },
+        { "effect": "setattr", "counter": "counter", "key": "acted", "value": "1" },
+        { "effect": "log", "text": "'部队恢复整齐'" }
+      ]
+    },
+
+    "pass": {
+      "id": "pass",
+      "kind": "pass",
+      "label": "结束行动",
+      "isEndAction": true,
+      "phase": "action",
+      "needsCounter": true,
+      "counterFilter": "counter.owner == me",
+      "validators": [ "notacted(counter)" ],
+      "effects": [
+        { "effect": "setattr", "counter": "counter", "key": "acted", "value": "1" },
+        { "effect": "log", "text": "'结束行动'" }
+      ]
+    }
+  },
+
+  "endConditions": [
+    { "when": "vpHeld(me) >= 2 && me == 0", "message": "曹操连克两城，徐州易主！", "winner": 0 },
+    { "when": "turn >= 10 && me == 1", "message": "曹操粮尽退兵，陶谦守住徐州！", "winner": 1 },
+    { "when": "enemycount(me) == 0", "message": "敌军被全歼，你获得了胜利！" }
+  ]
+}

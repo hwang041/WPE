@@ -1,0 +1,12 @@
+{
+  "description": "crTable 变体测试夹具示例：给定的行/列 → 期望结果码。verify/CI 将逐条断言。",
+  "cases": [
+    { "row": 3.5, "col": 1, "expect": "Dr" },
+    { "row": 3.5, "col": 6, "expect": "E" },
+    { "row": 2.5, "col": 3, "expect": "Dr" },
+    { "row": 1.75, "col": 2, "expect": "Ar" },
+    { "row": 1.2, "col": 4, "expect": "Ar" },
+    { "row": 0.8, "col": 1, "expect": "Adr" },
+    { "row": 0.8, "col": 6, "expect": "0" }
+  ]
+}

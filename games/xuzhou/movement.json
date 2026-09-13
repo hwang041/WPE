@@ -1,0 +1,15 @@
+{
+  "terrainCost": {
+    "P": 1,
+    "H": 2,
+    "F": 2,
+    "M": 3,
+    "T": 1
+  },
+  "terrainDefenseBonus": {
+    "T": 1,
+    "F": 1,
+    "H": 1
+  },
+  "riverCrossCost": 2
+}

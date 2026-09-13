@@ -1,0 +1,19 @@
+{
+  "subsystem": "map",
+  "id": "hexGrid",
+  "version": "1.0.0",
+  "status": "stable",
+  "description": "数据驱动六角格地图（地形/河流/胜利点）",
+  "configFile": "map.json",
+  "requires": [],
+  "provides": ["terrain", "rivers", "victoryHexes"],
+  "configSchema": {
+    "columns": "int 列数",
+    "rows": "int 行数",
+    "hexRadius": "float 六角格半径",
+    "pointyTop": "bool 尖顶(true)/平顶(false)",
+    "terrain": "每行一个字符串(长度==columns)的地形字母网格",
+    "rivers": "边沿河流段(segments 或 betweenRows/betweenCols)，fords 免费渡口",
+    "victoryHexes": "[{q,r}] 胜利点坐标"
+  }
+}

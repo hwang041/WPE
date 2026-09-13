@@ -1,0 +1,13 @@
+{
+  "subsystem": "victory",
+  "id": "vpAndSudden",
+  "version": "1.0.0",
+  "status": "stable",
+  "description": "胜利点 + 突然死亡，endConditions 全部满足即终局",
+  "configFile": "game.json",
+  "requires": [],
+  "provides": ["endConditions", "vpHeld"],
+  "configSchema": {
+    "endConditions": "[{when,message,winner?}] 任一满足即终局"
+  }
+}

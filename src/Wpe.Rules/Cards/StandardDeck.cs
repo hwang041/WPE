@@ -14,21 +14,22 @@ namespace Wpe.Rules.Cards;
 /// hand limit, and the data-driven effects `draw` / `replenish` / `shuffle` / `discard`.
 /// Card-driven turn rules are authored in game.json (a `needsCard` move + triggers).
 /// </summary>
-public sealed class StandardDeck : IRuleVariant
+public sealed class StandardDeck : RuleVariantBase
 {
     private readonly Dictionary<string, CardDef> _cards = new();
     private readonly List<DeckDef> _decks = new();
     private int _handLimit; // 0 = unlimited
 
-    public VariantInfo Info => new()
+    public override VariantInfo Info => new()
     {
         Subsystem = "cards",
         Id = "standard",
         Description = "通用卡牌框架：cards.json 牌定义+牌库，抽/补/洗/弃 + 手牌上限",
+        Provides = new[] { "draw", "replenish", "shuffle", "discard", "handsize", "handlimit", "cardZones" },
         Status = "stable"
     };
 
-    public void Load(string? configJson, GameDefinition def)
+    public override void Load(string? configJson, GameDefinition def)
     {
         if (configJson == null)
             throw new InvalidDataException("[cards] 需要 cards.json 配置文件");
@@ -57,7 +58,7 @@ public sealed class StandardDeck : IRuleVariant
             }
     }
 
-    public void Register(ModuleHost host)
+    public override void Register(ModuleHost host)
     {
         foreach (var (k, v) in _cards) host.Cards[k] = v;
         host.Decks.AddRange(_decks);
@@ -75,7 +76,7 @@ public sealed class StandardDeck : IRuleVariant
         host.AddFunction("handlimit", (ctx, a) => (double)_handLimit);
     }
 
-    public void Apply(GameState state, GameEngine? engine)
+    public override void Apply(GameState state, GameEngine? engine)
     {
         state.Cards.Clear();
         foreach (var deck in _decks)
@@ -91,7 +92,7 @@ public sealed class StandardDeck : IRuleVariant
                     });
     }
 
-    public void Validate(GameDefinition def, List<string> issues)
+    public override void Validate(GameDefinition def, List<string> issues)
     {
         if (_cards.Count == 0)
             issues.Add("[cards] cards.json 未定义任何卡牌");

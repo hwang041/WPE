@@ -82,8 +82,8 @@ public sealed class BoardRenderer
             var bmp = Chip(c); // cached — do NOT dispose
             canvas.DrawBitmap(bmp, rect, new SKPaint { FilterQuality = SKFilterQuality.Medium });
 
-            if (c.AttributeInt("acted", 0) == 1) canvas.DrawRect(rect, edge);
-            if (c.AttributeInt("selected", 0) == 1) canvas.DrawRect(rect, selEdge);
+            if (c.AttributeInt(_state.Def.ActedAttr, 0) == 1) canvas.DrawRect(rect, edge);
+            if (c.AttributeInt(MainForm.SelectedAttr, 0) == 1) canvas.DrawRect(rect, selEdge);
             canvas.Restore();
         }
     }

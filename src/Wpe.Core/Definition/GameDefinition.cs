@@ -29,6 +29,24 @@ public sealed class GameDefinition
     public DamageConfig Damage { get; set; } = new();
     public bool AutoActWhenExhausted { get; set; }
 
+    /// <summary>
+    /// Phase whose start triggers a per-turn reset (turnReset). Defaults to "action" so
+    /// existing packages keep working; games with other phase names can override it.
+    /// </summary>
+    public string TurnResetPhase { get; set; } = "action";
+
+    /// <summary>Attribute marking a counter as having acted this turn (engine control flow).</summary>
+    public string ActedAttr { get; set; } = ContractNames.Acted;
+
+    /// <summary>When true (default), a counter on its damaged/back side cannot move.</summary>
+    public bool MoveBlockedWhenBack { get; set; } = true;
+
+    /// <summary>Optional UI labels for phases (phase id -> display text); renderers fall back to the raw id.</summary>
+    public Dictionary<string, string> PhaseLabels { get; set; } = new();
+
+    /// <summary>Optional state-variable keys to surface on the GUI status bar (e.g. victory points, activations).</summary>
+    public List<string> HudVars { get; set; } = new();
+
     /// <summary>Faction display palette: faction key -> color/label (used by renderers; keeps games' factions out of the shared code).</summary>
     public Dictionary<string, FactionDef> Factions { get; set; } = new();
 

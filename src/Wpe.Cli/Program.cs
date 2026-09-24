@@ -110,31 +110,26 @@ public static class Program
         var engine = game.Engine;
         var state = game.State;
         Console.WriteLine($"== {game.Def.Name} == phase={state.CurrentPhase} player={state.ActivePlayer + 1} turn={state.TurnNumber}");
-        foreach (var c in state.CountersOnBoard().OrderBy(c => c.AttributeInt("owner", -1)).ThenBy(c => c.Id))
+        foreach (var c in state.CountersOnBoard().OrderBy(c => c.AttributeInt(ContractNames.Owner, -1)).ThenBy(c => c.Id))
             Console.WriteLine($"  {c}");
 
-        // scripted auto-play: attack when possible, else move toward the nearest enemy, else pass
+        // scripted auto-play, phase-agnostic: play a card if allowed, else act with a unit,
+        // else advance the phase via the endphase move. No phase names / move ids hardcoded.
+        var endPhase = engine.EndPhaseMove;
         int guard = 0;
         while (!state.GameOver && state.TurnNumber <= 12 && guard < 600)
         {
             guard++;
             if (engine.GameOver) break;
-            if (state.CurrentPhase == "card")
-            {
-                var card = engine.Hand(state.ActivePlayer).FirstOrDefault(c => engine.CanPlayCard(c, out _));
-                if (card != null) { engine.PlayCard(card); continue; }
-                if (!engine.Apply("endphase", null, null, null)) break; // no playable card and phase locked
-                continue;
-            }
-            if (state.CurrentPhase != "action")
-            {
-                if (!engine.Apply("endphase", null, null, null)) break;
-                continue;
-            }
+
+            var card = engine.Hand(state.ActivePlayer).FirstOrDefault(c => engine.CanPlayCard(c, out _));
+            if (card != null) { engine.PlayCard(card); continue; }
+
             var units = state.CountersOnBoard()
-                .Where(c => c.AttributeInt("owner", -1) == state.ActivePlayer && !c.IsBack && c.AttributeInt("acted", 0) == 0)
+                .Where(c => c.AttributeInt(ContractNames.Owner, -1) == state.ActivePlayer
+                         && !c.IsBack && c.AttributeInt(engine.Def.ActedAttr, 0) == 0)
                 .ToList();
-            var enemies = state.CountersOnBoard().Where(c => c.AttributeInt("owner", -1) != state.ActivePlayer).ToList();
+            var enemies = state.CountersOnBoard().Where(c => c.AttributeInt(ContractNames.Owner, -1) != state.ActivePlayer).ToList();
             bool acted = false;
             foreach (var u in units)
             {
@@ -175,7 +170,8 @@ public static class Program
                     acted = true; break;
                 }
             }
-            if (!acted) engine.Apply("endphase", null, null, null);
+            if (acted) continue;
+            if (endPhase == null || !engine.Apply(endPhase.Id, null, null, null)) break;
         }
 
         Console.WriteLine();
@@ -288,10 +284,12 @@ public static class Program
     private static void AdvanceToNextCardPhase(GameEngine engine, GameState state)
     {
         int start = state.ActivePlayer;
+        var endPhase = engine.EndPhaseMove;
+        if (endPhase == null) return;
         for (int i = 0; i < 8; i++)
         {
-            if (state.CurrentPhase == "card" && state.ActivePlayer != start) return;
-            if (!engine.Apply("endphase", null, null, null)) return;
+            if (state.ActivePlayer != start) return;
+            if (!engine.Apply(endPhase.Id, null, null, null)) return;
         }
     }
 
@@ -304,9 +302,13 @@ public static class Program
             Console.WriteLine("用法: wpe rule list");
             return 1;
         }
+        var catalog = RuleCatalog.Load();
+        var registry = new VariantRegistry();
         Console.WriteLine("规则库变体 (子系统/变体/状态/说明):");
-        foreach (var info in DefaultFamilies.List())
-            Console.WriteLine($"  {info.Subsystem,-10} {info.Id,-14} {info.Status,-8} {info.Description}");
+        foreach (var meta in catalog.Variants.Values.OrderBy(v => v.Subsystem).ThenBy(v => v.Id))
+            Console.WriteLine($"  {meta.Subsystem,-10} {meta.Id,-14} {meta.Status,-8} {meta.Description}");
+        foreach (var issue in catalog.Reconcile(registry))
+            Console.WriteLine($"  [warn] {issue}");
         return 0;
     }
 

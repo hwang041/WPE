@@ -273,6 +273,118 @@ public static class ExpressionParser
         pos++;
     }
 
+    /// <summary>
+    /// Conservative, verify-time lint: flag only constructs that are certainly wrong
+    /// (divide by literal zero, string-vs-number comparison). Never changes runtime semantics.
+    /// </summary>
+    public static List<string> Lint(INode node)
+    {
+        var issues = new List<string>();
+        void Walk(INode? n)
+        {
+            switch (n)
+            {
+                case Binary b:
+                    Walk(b.L);
+                    Walk(b.R);
+                    if ((b.Op == "/" || b.Op == "%") && b.R is Lit rl && rl.S == null && !rl.B && !rl.IsNull && rl.D == 0)
+                        issues.Add($"除数字面量为 0（'{b.Op}'）");
+                    if (b.Op is "==" or "!=" &&
+                        ((IsStringLit(b.L) && IsNumLit(b.R)) || (IsNumLit(b.L) && IsStringLit(b.R))))
+                        issues.Add("字符串与数字比较恒不相等");
+                    break;
+                case Unary u:
+                    Walk(u.Operand);
+                    break;
+                case LogicalNot ln:
+                    Walk(ln.Operand);
+                    break;
+                case Call c:
+                    if (c.Obj != null) Walk(c.Obj);
+                    foreach (var a in c.Args) Walk(a);
+                    break;
+                case Prop p:
+                    Walk(p.Obj);
+                    break;
+            }
+        }
+        Walk(node);
+        return issues;
+
+        static bool IsStringLit(INode n) => n is Lit l && l.S != null;
+        static bool IsNumLit(INode n) => n is Lit l && l.S == null && !l.B && !l.IsNull;
+    }
+
+    /// <summary>References an expression makes: root variables, property paths and called functions.</summary>
+    public sealed class AstRefs
+    {
+        public HashSet<string> Roots { get; } = new(StringComparer.OrdinalIgnoreCase);
+        public HashSet<string> Calls { get; } = new(StringComparer.OrdinalIgnoreCase);
+        /// <summary>(root, dotted path) for every property access, e.g. ("counter","moveLeft").</summary>
+        public List<(string Root, string Path)> Props { get; } = new();
+    }
+
+    /// <summary>Walk an expression and report the roots, property paths and calls it uses.</summary>
+    public static AstRefs CollectRefs(INode node)
+    {
+        var refs = new AstRefs();
+        void Walk(INode? n)
+        {
+            switch (n)
+            {
+                case VarRef v:
+                    refs.Roots.Add(v.Name);
+                    break;
+                case Prop p:
+                    if (TryPropPath(p, out var root, out var path))
+                    {
+                        refs.Roots.Add(root);
+                        refs.Props.Add((root, path));
+                    }
+                    Walk(p.Obj);
+                    break;
+                case Call c:
+                    refs.Calls.Add(c.Name);
+                    if (c.Obj != null) Walk(c.Obj);
+                    foreach (var a in c.Args) Walk(a);
+                    break;
+                case Unary u:
+                    Walk(u.Operand);
+                    break;
+                case LogicalNot ln:
+                    Walk(ln.Operand);
+                    break;
+                case Binary b:
+                    Walk(b.L);
+                    Walk(b.R);
+                    break;
+            }
+        }
+        Walk(node);
+        return refs;
+    }
+
+    private static bool TryPropPath(INode n, out string root, out string path)
+    {
+        if (n is Prop p)
+        {
+            if (TryPropPath(p.Obj, out root, out var prefix))
+            {
+                path = prefix.Length == 0 ? p.Name : prefix + "." + p.Name;
+                return true;
+            }
+            if (p.Obj is VarRef v)
+            {
+                root = v.Name;
+                path = p.Name;
+                return true;
+            }
+        }
+        root = "";
+        path = "";
+        return false;
+    }
+
     /// <summary>Collect the names of every function called by a parsed expression (for verification).</summary>
     public static List<string> CollectCallNames(INode node)
     {

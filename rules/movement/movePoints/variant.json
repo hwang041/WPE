@@ -6,6 +6,7 @@
   "description": "行动点移动：每格地形费 + 河流费，BFS 可达区域",
   "configFile": "movement.json",
   "requires": ["map"],
+  "requiresVariants": ["map:hexGrid"],
   "provides": ["reachability", "moveCost", "riverCost"],
   "configSchema": {
     "terrainCost": "地形字母 -> 进入该格移动费",

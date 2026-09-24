@@ -20,6 +20,7 @@ public static class Template
     "victory":  { "variant": "vpAndSudden" }
   },
   "phaseOrder": [ "action", "turnEnd" ],
+  "phaseLabels": { "action": "行动", "turnEnd": "回合结束" },
   "damage": { "strengthPenalty": 1, "movePenalty": 1 },
   "autoActWhenExhausted": true,
   "turnReset": [

@@ -37,6 +37,11 @@ public sealed class MainForm : Form
     private const float MinZoom = 0.001f;
     private const float MaxZoom = 5f;
 
+    /// <summary>UI-only transient attribute marking the selected counter (not a game contract).</summary>
+    public const string SelectedAttr = "selected";
+
+    private string ActedAttr => _engine.Def.ActedAttr;
+
     private readonly bool _headless;
     private int _selectedId = -1;
     private bool _dragging;
@@ -148,9 +153,11 @@ public sealed class MainForm : Form
     private void RefreshUi()
     {
         var who = _state.ActivePlayer == 0 ? "玩家1" : "玩家2";
-        var extra = _state.Cards.Count > 0 ? $" | 激活 {Var("activations")} | 已出牌 {Var("cardPlayed")}" : "";
+        var extra = "";
+        foreach (var key in _engine.Def.HudVars)
+            extra += $" | {key} {Var(key)}";
         _status.Text = $"回合 {_state.TurnNumber} | 阶段 {PhaseLabel()} | 先手 {who}{extra}";
-        _endPhaseBtn.Enabled = _engine.IsTurn(_state.ActivePlayer) && !_engine.GameOver && CanEndPhase();
+        _endPhaseBtn.Enabled = _engine.IsTurn(_state.ActivePlayer) && !_engine.GameOver && _engine.CanEndPhase(out _);
         _consolidateBtn.Enabled = _selectedId >= 0 &&
             _engine.LegalMovesForCounter(_state.Counters[_selectedId]).Any(m => m.Kind == "recover");
         _passBtn.Enabled = _selectedId >= 0 &&
@@ -158,29 +165,21 @@ public sealed class MainForm : Form
         _hexInfo.Text = SelectedInfo();
 
         foreach (var c in _state.Counters)
-            if (c.AttributeInt("acted", 0) == 0 && c.RotationDeg != 0)
+            if (c.AttributeInt(ActedAttr, 0) == 0 && c.RotationDeg != 0)
                 c.RotationDeg = 0;
 
         RebuildHand();
         _sk.Invalidate();
     }
 
-    private bool CanEndPhase()
-        => _state.CurrentPhase != "card" || Var("cardPlayed") == 1;
-
-    private string PhaseLabel() => _state.CurrentPhase switch
-    {
-        "action" => "行动",
-        "card" => "出牌",
-        "turnEnd" => "回合结束",
-        _ => _state.CurrentPhase
-    };
+    private string PhaseLabel()
+        => _engine.Def.PhaseLabels.TryGetValue(_state.CurrentPhase, out var label) ? label : _state.CurrentPhase;
 
     private string SelectedInfo()
     {
         if (_selectedId < 0) return "";
         var c = _state.Counters[_selectedId];
-        var s = $"[{c.Id}] {c.Name} 攻{c.AttributeFloat("strength")}/移{c.AttributeFloat("move")}";
+        var s = $"[{c.Id}] {c.Name} 攻{c.AttributeFloat(ContractNames.Strength)}/移{c.AttributeFloat(ContractNames.Move)}";
         if (c.OnBoard)
         {
             if (_state.Map is SpaceMap space)
@@ -190,7 +189,7 @@ public sealed class MainForm : Form
             }
             else s += $" hex({c.Hex.Q},{c.Hex.R})";
         }
-        if (c.AttributeInt("acted") == 1) s += " 已行动";
+        if (c.AttributeInt(ActedAttr) == 1) s += " 已行动";
         return s;
     }
 
@@ -372,7 +371,7 @@ public sealed class MainForm : Form
     {
         _stackList.Items.Clear();
         foreach (var c in stack)
-            _stackList.Items.Add($"{c.Name} 攻{c.AttributeFloat("strength")}{(c.AttributeInt("acted", 0) == 1 ? " (已行动)" : "")}");
+            _stackList.Items.Add($"{c.Name} 攻{c.AttributeFloat(ContractNames.Strength)}{(c.AttributeInt(ActedAttr, 0) == 1 ? " (已行动)" : "")}");
         _stackList.Tag = stack;
         _stackList.SelectedIndex = 0;
         _stackPanel.Visible = true;
@@ -398,7 +397,7 @@ public sealed class MainForm : Form
         Deselect();
         _selectedId = id;
         var unit = _state.Counters[id];
-        unit.Attributes["selected"] = 1;
+        unit.Attributes[SelectedAttr] = 1;
         var moves = _engine.LegalMovesForCounter(unit);
         _state.LogMessage($"选中 [{id}] {unit.Name}：可用 {string.Join(",", moves.Select(m => m.Kind))}");
 
@@ -412,7 +411,7 @@ public sealed class MainForm : Form
 
     private void Deselect()
     {
-        if (_selectedId >= 0) _state.Counters[_selectedId].Attributes.Remove("selected");
+        if (_selectedId >= 0) _state.Counters[_selectedId].Attributes.Remove(SelectedAttr);
         _selectedId = -1;
         _moveTargets.Clear();
         _attackTargets.Clear();
@@ -427,7 +426,7 @@ public sealed class MainForm : Form
         var move = _engine.LegalMovesForCounter(unit).FirstOrDefault(m => m.Kind == "movement");
         if (move != null && _engine.Apply(move.Id, unit, cell, null))
         {
-            if (unit.AttributeInt("acted", 0) == 1)
+            if (unit.AttributeInt(ActedAttr, 0) == 1)
             {
                 unit.RotationDeg = 45f;
                 Deselect();
@@ -455,7 +454,7 @@ public sealed class MainForm : Form
         _undoStack.Add(_state.Clone());
         if (_engine.Apply(move.Id, unit, null, null))
         {
-            unit.Attributes["acted"] = 1;
+            unit.Attributes[ActedAttr] = 1;
             unit.RotationDeg = 45f;
             Deselect();
         }
@@ -473,7 +472,7 @@ public sealed class MainForm : Form
         _undoStack.Add(_state.Clone());
         if (_engine.Apply(move.Id, unit, null, null))
         {
-            unit.Attributes["acted"] = 1;
+            unit.Attributes[ActedAttr] = 1;
             unit.RotationDeg = 45f;
             Deselect();
         }
@@ -489,7 +488,7 @@ public sealed class MainForm : Form
         _undoStack.Add(_state.Clone());
         if (_engine.Apply(move.Id, attacker, null, target))
         {
-            attacker.Attributes["acted"] = 1;
+            attacker.Attributes[ActedAttr] = 1;
             attacker.RotationDeg = 45f;
             Deselect();
         }
@@ -500,8 +499,10 @@ public sealed class MainForm : Form
 
     private void DoEndPhase()
     {
+        var move = _engine.EndPhaseMove;
+        if (move == null) return;
         _undoStack.Add(_state.Clone());
-        if (_engine.Apply("endphase", null, null, null))
+        if (_engine.Apply(move.Id, null, null, null))
         {
             Deselect();
             _state.LogMessage($"—— 进入 {_state.CurrentPhase} ——");
@@ -619,23 +620,24 @@ public sealed class MainForm : Form
         try
         {
             sb.AppendLine($"game={_engine.Def.Name} phase={_state.CurrentPhase} cards={_state.Cards.Count}");
-            if (_state.CurrentPhase == "card")
+            if (_engine.Def.Moves.Values.Any(m => m.NeedsCard))
             {
                 var card = _engine.Hand(_state.ActivePlayer).FirstOrDefault(c => _engine.CanPlayCard(c, out _));
                 if (card != null)
                 {
                     DoPlayCard(card);
-                    sb.AppendLine($"played zone={card.Zone} activations={Var("activations")}");
+                    var hud = string.Join(",", _engine.Def.HudVars.Select(k => $"{k}={Var(k)}"));
+                    sb.AppendLine($"played zone={card.Zone} {hud}");
                     var second = _engine.Hand(_state.ActivePlayer).FirstOrDefault(c => _engine.CanPlayCard(c, out _));
                     sb.AppendLine($"secondPlayable={second != null}");
                 }
                 else sb.AppendLine("no playable card");
-                if (CanEndPhase()) DoEndPhase();
+                if (_engine.CanEndPhase(out _)) DoEndPhase();
                 sb.AppendLine($"afterEndPhase phase={_state.CurrentPhase}");
             }
 
             var unit = _state.CountersOnBoard()
-                .FirstOrDefault(c => c.AttributeInt("owner", -1) == _state.ActivePlayer && c.AttributeInt("acted", 0) == 0);
+                .FirstOrDefault(c => c.AttributeInt(ContractNames.Owner, -1) == _state.ActivePlayer && c.AttributeInt(ActedAttr, 0) == 0);
             if (unit != null)
             {
                 SelectUnit(unit.Id);

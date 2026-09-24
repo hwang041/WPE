@@ -2,7 +2,6 @@ using System.Text.Json;
 using Wpe.Core.Definition;
 using Wpe.Core.Engine;
 using Wpe.Core.Expressions;
-using Wpe.Core.Model;
 using Wpe.Core.Modules;
 
 namespace Wpe.Rules.Combat;
@@ -12,18 +11,21 @@ namespace Wpe.Rules.Combat;
 /// code, which the move's resultEffects then turn into effects. Row/column indices are
 /// computed by expressions (e.g. "effStr(counter) / effStr(target)" and "roll").
 /// </summary>
-public sealed class CrTable : IRuleVariant, ICombatModule
+public sealed class CrTable : RuleVariantBase, ICombatModule
 {
-    public VariantInfo Info => new()
+    private readonly Dictionary<string, CombatDef> _combatDefs = new();
+
+    public override VariantInfo Info => new()
     {
         Subsystem = "combat",
         Id = "crTable",
         Description = "战力比 CRT：战力比行 × 骰子列 → 结果码",
         Requires = new[] { "dice" },
+        Provides = new[] { "combatResolution" },
         Status = "stable"
     };
 
-    public void Load(string? configJson, GameDefinition def)
+    public override void Load(string? configJson, GameDefinition def)
     {
         if (configJson == null) return;
         using var doc = JsonDocument.Parse(configJson);
@@ -35,17 +37,13 @@ public sealed class CrTable : IRuleVariant, ICombatModule
         }
     }
 
-    private readonly Dictionary<string, CombatDef> _combatDefs = new();
-
-    public void Register(ModuleHost host)
+    public override void Register(ModuleHost host)
     {
         host.Combat = this;
         foreach (var (k, v) in _combatDefs) host.CombatDefs[k] = v;
     }
 
-    public void Apply(GameState state, GameEngine? engine) { }
-
-    public void Validate(GameDefinition def, List<string> issues)
+    public override void Validate(GameDefinition def, List<string> issues)
     {
         foreach (var (id, cbt) in _combatDefs)
         {

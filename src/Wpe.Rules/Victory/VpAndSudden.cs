@@ -1,7 +1,5 @@
 using Wpe.Core.Definition;
 using Wpe.Core.Engine;
-using Wpe.Core.Expressions;
-using Wpe.Core.Model;
 using Wpe.Core.Modules;
 
 namespace Wpe.Rules.Victory;
@@ -11,38 +9,30 @@ namespace Wpe.Rules.Victory;
 /// both declared in game.json `endConditions`. Provides the vpHeld() function
 /// (count of victory hexes currently occupied by a player's units).
 /// </summary>
-public sealed class VpAndSudden : IRuleVariant, IVictoryModule
+public sealed class VpAndSudden : RuleVariantBase, IVictoryModule
 {
-    public VariantInfo Info => new()
+    public override VariantInfo Info => new()
     {
         Subsystem = "victory",
         Id = "vpAndSudden",
         Description = "胜利点 + 突然死亡，endConditions 全部满足即终局",
+        Provides = new[] { "endConditions", "vpHeld" },
         Status = "stable"
     };
 
-    public void Load(string? configJson, GameDefinition def) { }
-    public void Register(ModuleHost host)
+    public override void Register(ModuleHost host)
     {
         host.Victory = this;
-        host.AddFunction("vpHeld", (ctx, a) =>
+        host.AddFunctionAliases((ctx, a) =>
         {
-            var p = (int)ValueAccessor.AsNumber(a.Length > 0 ? a[0] : 0);
+            var p = (int)ExprArgs.Number(a, 0);
             return (double)ctx.State.CountersOnBoard().Count(c =>
-                c.AttributeInt("owner", -1) == p &&
+                c.AttributeInt(ContractNames.Owner, -1) == p &&
                 ctx.State.Map != null && ctx.State.Map.IsVictoryHex(c.Hex));
-        });
-        host.AddFunction("victoryheld", (ctx, a) =>
-        {
-            var p = (int)ValueAccessor.AsNumber(a.Length > 0 ? a[0] : 0);
-            return (double)ctx.State.CountersOnBoard().Count(c =>
-                c.AttributeInt("owner", -1) == p &&
-                ctx.State.Map != null && ctx.State.Map.IsVictoryHex(c.Hex));
-        });
+        }, "vpHeld", "victoryheld");
     }
 
-    public void Apply(GameState state, GameEngine? engine) { }
-    public void Validate(GameDefinition def, List<string> issues)
+    public override void Validate(GameDefinition def, List<string> issues)
     {
         if (def.EndConditions.Count == 0)
             issues.Add("[victory] 未配置 endConditions，游戏将无法正常结束");

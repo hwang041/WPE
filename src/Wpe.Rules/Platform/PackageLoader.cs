@@ -59,16 +59,21 @@ public static class PackageLoader
         if (def.PhaseOrder.Count == 0)
             result.Errors.Add("[game.json] 未定义阶段序列 (phaseOrder)");
 
-        // 2) resolve variant selection (family preset + per-subsystem overrides)
-        var selection = ResolveSelection(def);
+        // 2) discover the rule library (disk catalog + code registry) and reconcile them
+        var registry = new VariantRegistry();
+        var catalog = RuleCatalog.Load();
+        result.Errors.AddRange(catalog.Reconcile(registry));
 
-        // 3) instantiate variants
+        // 3) resolve variant selection (family preset + per-subsystem overrides)
+        var selection = ResolveSelection(def, catalog, result);
+
+        // 4) instantiate variants
         var host = new ModuleHost();
-        CoreFunctions.Seed(host);
-        foreach (var subsystem in new[] { "map", "counter", "movement", "combat", "dice", "turn", "victory", "scenario", "cards", "stacking" })
+        CoreFunctions.Seed(host, def);
+        foreach (var subsystem in RuleCatalog.SubsystemOrder)
         {
             if (!selection.TryGetValue(subsystem, out var sel)) continue;
-            var variant = DefaultFamilies.Create(subsystem, sel.Variant);
+            var variant = registry.Create(subsystem, sel.Variant);
             if (variant == null)
             {
                 result.Errors.Add($"[rules] 未知变体 '{sel.Variant}'（子系统 {subsystem}）");
@@ -97,8 +102,15 @@ public static class PackageLoader
             catch (Exception ex) { result.Errors.Add($"[{sub}/{v.Info.Id}] 校验异常: {ex.Message}"); }
         }
 
-        // 6) expression validation (all moves/triggers/endconditions + combat tables)
-        ValidateExpressions(def, host, result);
+        // 6) name contract + expression validation (functions = error, names = warning)
+        var contract = NameContract.Create();
+        contract.ContributeFromGame(def);
+        foreach (var v in host.AllVariants)
+            if (v is INameContributor nc) nc.ContributeNames(contract);
+        foreach (var cdef in host.Cards.Values)
+            contract.ContributeEffects(cdef.Effects);
+
+        ValidateExpressions(def, host, result, contract);
 
         if (result.Errors.Count > 0) return result;
 
@@ -106,7 +118,7 @@ public static class PackageLoader
         try
         {
             var state = new GameState(def) { Map = host.MapData };
-            foreach (var sub in DefaultFamilies.ApplyOrder)
+            foreach (var sub in RuleCatalog.ApplyOrder)
                 host.GetVariant(sub)?.Apply(state, null);
 
             // resolve each counter's faction colour from the game's palette (renderers stay game-agnostic)
@@ -147,11 +159,13 @@ public static class PackageLoader
 
     // ---- resolution / config ----
 
-    private static Dictionary<string, VariantSelection> ResolveSelection(GameDefinition def)
+    private static Dictionary<string, VariantSelection> ResolveSelection(GameDefinition def, RuleCatalog catalog, PackageResult result)
     {
-        var preset = DefaultFamilies.Presets.TryGetValue(def.Family, out var p)
-            ? p
-            : DefaultFamilies.Presets[DefaultFamilies.Default];
+        if (!catalog.TryGetPreset(def.Family, out var preset))
+        {
+            result.Warnings.Add($"[rules] 未知家族预设 '{def.Family}'，回退到 '{RuleCatalog.DefaultFamily}'");
+            catalog.TryGetPreset(RuleCatalog.DefaultFamily, out preset);
+        }
         var selection = new Dictionary<string, VariantSelection>();
         foreach (var (sub, id) in preset)
             selection[sub] = new VariantSelection { Variant = id };
@@ -198,6 +212,13 @@ public static class PackageLoader
             foreach (var need in v.Info.Requires)
                 if (!selection.ContainsKey(need))
                     result.Errors.Add($"[rules] 变体 {sub}/{v.Info.Id} 依赖子系统 '{need}'，但未启用");
+            foreach (var need in v.Info.RequiresVariants)
+            {
+                var parts = need.Split(':', 2);
+                if (parts.Length != 2) continue;
+                if (!selection.TryGetValue(parts[0], out var needSel) || needSel.Variant != parts[1])
+                    result.Errors.Add($"[rules] 变体 {sub}/{v.Info.Id} 需要 {need}，但当前 {parts[0]} 是 '{needSel?.Variant ?? "未启用"}'");
+            }
         }
 
         if (def.Moves.Values.Any(m => m.Roll != null) && host.Dice == null)
@@ -212,22 +233,27 @@ public static class PackageLoader
             result.Warnings.Add("[rules] 配置了 endConditions 但未启用 victory 子系统（使用内核回退）");
     }
 
-    private static void ValidateExpressions(GameDefinition def, ModuleHost host, PackageResult result)
+    private static void ValidateExpressions(GameDefinition def, ModuleHost host, PackageResult result, NameContract contract)
     {
         void Check(string where, string src)
         {
             if (string.IsNullOrWhiteSpace(src)) return;
+            ExpressionParser.INode node;
             try
             {
-                var node = ExpressionParser.Parse(src);
+                node = ExpressionParser.Parse(src);
                 foreach (var fn in ExpressionParser.CollectCallNames(node))
                     if (!host.HasFunction(fn))
                         result.Errors.Add($"[expr] {where}: 使用了未知函数 '{fn}'");
+                foreach (var lint in ExpressionParser.Lint(node))
+                    result.Warnings.Add($"[expr] {where}: {lint}");
             }
             catch (ExprException ex)
             {
                 result.Errors.Add($"[expr] {where}: {ex.Message}");
+                return;
             }
+            contract.Check(ExpressionParser.CollectRefs(node), where, result.Warnings);
         }
 
         foreach (var (id, m) in def.Moves)
@@ -261,7 +287,9 @@ public static class PackageLoader
         foreach (var e in effects)
         {
             check($"{where}.when", e.When);
-            check($"{where}.value", e.Value);
+            // e.Value is only an expression for these effects; setside stores a keyword ("front"/"back").
+            if (e.Effect is "setattr" or "setvar" or "addvar" or "control")
+                check($"{where}.value", e.Value);
             check($"{where}.x", e.X);
             check($"{where}.y", e.Y);
             check($"{where}.text", e.Text);

@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Wpe.Core.Definition;
 using Wpe.Core.Engine;
 using Wpe.Core.Expressions;
@@ -12,46 +11,39 @@ namespace Wpe.Rules.Map;
 /// by roads. Provides the node-oriented expressions (`nodetype`, `controllednodes`,
 /// `occupiedby`) and the `control` effect that persists node ownership in Control.
 /// </summary>
-public sealed class PointToPoint : IRuleVariant
+public sealed class PointToPoint : RuleVariantBase
 {
     private SpaceMap? _map;
 
-    public VariantInfo Info => new()
+    public override VariantInfo Info => new()
     {
         Subsystem = "map",
         Id = "pointToPoint",
         Description = "数据驱动点对点地图（城镇节点 + 道路），节点城防/势力",
+        Provides = new[] { "nodes", "roads", "nodetype", "controllednodes", "occupiedby", "terrainDefense" },
         Status = "stable"
     };
 
-    public void Load(string? configJson, GameDefinition def)
+    public override void Load(string? configJson, GameDefinition def)
     {
         if (configJson == null)
             throw new InvalidDataException("[map] 需要 spacemap.json 配置文件");
         _map = SpaceMap.Parse(configJson);
     }
 
-    public void Register(ModuleHost host)
+    public override void Register(ModuleHost host)
     {
         host.MapData = _map;
 
-        host.AddFunction("terrainAt", (ctx, a) => Map(ctx).TerrainAt(Cell(a, ctx, 0)));
-        host.AddFunction("terrain", (ctx, a) => Map(ctx).TerrainAt(Cell(a, ctx, 0)));
-        host.AddFunction("terrainDefense", (ctx, a) => (double)Map(ctx).TerrainDefenseAt(Cell(a, ctx, 0)));
-        host.AddFunction("terrain_defense", (ctx, a) => (double)Map(ctx).TerrainDefenseAt(Cell(a, ctx, 0)));
-        host.AddFunction("nodetype", (ctx, a) => Map(ctx).TerrainAt(Cell(a, ctx, 0)));
-        host.AddFunction("space_type", (ctx, a) => Map(ctx).TerrainAt(Cell(a, ctx, 0)));
-
-        host.AddFunction("controllednodes", (ctx, a) => (double)CountControlled(ctx, a));
-        host.AddFunction("nodesheld", (ctx, a) => (double)CountControlled(ctx, a));
-
-        host.AddFunction("occupiedby", (ctx, a) => OccupiedBy(ctx, a));
-        host.AddFunction("occupied_by", (ctx, a) => OccupiedBy(ctx, a));
+        host.AddFunctionAliases((ctx, a) => Map(ctx).TerrainAt(ExprArgs.Cell(a, ctx, 0)), "terrainAt", "terrain", "nodetype", "space_type");
+        host.AddFunctionAliases((ctx, a) => (double)Map(ctx).TerrainDefenseAt(ExprArgs.Cell(a, ctx, 0)), "terrainDefense", "terrain_defense");
+        host.AddFunctionAliases((ctx, a) => (double)CountControlled(ctx, a), "controllednodes", "nodesheld");
+        host.AddFunctionAliases((ctx, a) => OccupiedBy(ctx, a), "occupiedby", "occupied_by");
 
         host.AddEffect("control", ControlEffect);
     }
 
-    public void Apply(GameState state, GameEngine? engine)
+    public override void Apply(GameState state, GameEngine? engine)
     {
         if (_map == null) return;
         // initial territory declared on each node
@@ -62,7 +54,7 @@ public sealed class PointToPoint : IRuleVariant
         }
     }
 
-    public void Validate(GameDefinition def, List<string> issues)
+    public override void Validate(GameDefinition def, List<string> issues)
     {
         if (_map == null) { issues.Add("[map] spacemap.json 未加载"); return; }
         foreach (var e in _map.Edges)
@@ -86,10 +78,10 @@ public sealed class PointToPoint : IRuleVariant
     private static bool OccupiedBy(RuleContext ctx, object?[] a)
     {
         if (a.Length < 2) return false;
-        var owner = (int)ValueAccessor.AsNumber(a[1]);
-        var cell = Cell(a, ctx, 0);
+        var owner = (int)ExprArgs.Number(a, 1);
+        var cell = ExprArgs.Cell(a, ctx, 0);
         return ctx.State.CountersOnBoard().Any(c =>
-            c.AttributeInt("owner", -1) == owner && c.Hex == cell);
+            c.AttributeInt(ContractNames.Owner, -1) == owner && c.Hex == cell);
     }
 
     private static void ControlEffect(RuleContext ctx, EffectDef e)
@@ -101,19 +93,5 @@ public sealed class PointToPoint : IRuleVariant
         var id = sm.NodeIdOf(cell.Value);
         if (string.IsNullOrEmpty(id)) return;
         ctx.State.Control[id] = ctx.Engine.Compile(e.Value).EvalString(ctx);
-    }
-
-    /// <summary>Resolve an argument to a cell: counter -> its hex, HexCoord -> itself, else target pos / actor.</summary>
-    private static HexCoord Cell(object?[] a, RuleContext ctx, int i)
-    {
-        if (a.Length > i)
-        {
-            switch (a[i])
-            {
-                case HexCoord c: return c;
-                case CounterState c: return c.Hex;
-            }
-        }
-        return ctx.TargetPos ?? ctx.Counter?.Hex ?? new HexCoord(-1, 0);
     }
 }

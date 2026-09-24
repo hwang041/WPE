@@ -15,6 +15,11 @@ public sealed class Expr
 
     public static Expr Compile(string source) => new(source, ExpressionParser.Parse(source));
 
+    private ExpressionParser.AstRefs? _refs;
+
+    /// <summary>Roots / property paths / calls this expression uses (for dependency checks).</summary>
+    public ExpressionParser.AstRefs Refs => _refs ??= ExpressionParser.CollectRefs(_node);
+
     public object? Eval(RuleContext ctx)
         => _node.Eval(new ExpressionParser.EvaluatorContext
         {

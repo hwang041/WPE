@@ -12,75 +12,73 @@ namespace Wpe.Rules.Scenario;
 /// their faction/owner/per-scenario stats, and the deployment. Supports explicit hex
 /// placement and turn-gated reinforcements (entryTurn + entryHex).
 /// </summary>
-public sealed class GenericScenario : IRuleVariant
+public sealed class GenericScenario : RuleVariantBase
 {
     private ScenarioDef? _scenario;
 
-    public VariantInfo Info => new()
+    public override VariantInfo Info => new()
     {
         Subsystem = "scenario",
         Id = "generic",
         Description = "通用剧本：选算子 + 势力/数值覆盖 + 部署/援军",
         Requires = new[] { "map" },
+        Provides = new[] { "deployment", "reinforcements" },
         Status = "stable"
     };
 
-    public void Load(string? configJson, GameDefinition def)
+    public override void Load(string? configJson, GameDefinition def)
     {
         if (configJson == null) return;
         _scenario = JsonSerializer.Deserialize<ScenarioDef>(configJson, JsonOpts)
             ?? throw new InvalidDataException("[scenario] scenario.json 解析失败");
     }
 
-    public void Register(ModuleHost host) { }
-
-    public void Apply(GameState state, GameEngine? engine)
+    public override void Apply(GameState state, GameEngine? engine)
     {
         if (_scenario == null) return;
         foreach (var u in _scenario.Units)
         {
-            var c = state.Counters.FirstOrDefault(x => x.AttributeStr("key") == u.Key);
+            var c = state.Counters.FirstOrDefault(x => x.AttributeStr(ContractNames.Key) == u.Key);
             if (c == null)
             {
                 c = new CounterState { Id = state.Counters.Count, Side = Side.Front };
-                c.Attributes["key"] = u.Key;
+                c.Attributes[ContractNames.Key] = u.Key;
                 state.Counters.Add(c);
             }
-            if (u.Name != null) c.Attributes["name"] = u.Name;
-            if (u.Type != null) c.Attributes["type"] = u.Type;
-            if (u.Faction != null) c.Attributes["faction"] = u.Faction;
-            if (u.Owner.HasValue) c.Attributes["owner"] = (double)u.Owner.Value;
-            if (u.Strength.HasValue) c.Attributes["strength"] = u.Strength.Value;
-            if (u.Move.HasValue) c.Attributes["move"] = u.Move.Value;
+            if (u.Name != null) c.Attributes[ContractNames.Name] = u.Name;
+            if (u.Type != null) c.Attributes[ContractNames.Type] = u.Type;
+            if (u.Faction != null) c.Attributes[ContractNames.Faction] = u.Faction;
+            if (u.Owner.HasValue) c.Attributes[ContractNames.Owner] = (double)u.Owner.Value;
+            if (u.Strength.HasValue) c.Attributes[ContractNames.Strength] = u.Strength.Value;
+            if (u.Move.HasValue) c.Attributes[ContractNames.Move] = u.Move.Value;
 
             if (!string.IsNullOrEmpty(u.Node) && state.Map != null && state.Map.TryResolveCell(u.Node, out var cell))
             {
                 c.Position = cell;
-                c.Attributes["node"] = u.Node;
-                c.Attributes.Remove("entryTurn");
-                c.Attributes.Remove("entryHex");
-                if (c.Attributes.TryGetValue("faction", out var f) && f != null)
+                c.Attributes[ContractNames.Node] = u.Node;
+                c.Attributes.Remove(ContractNames.EntryTurn);
+                c.Attributes.Remove(ContractNames.EntryHex);
+                if (c.Attributes.TryGetValue(ContractNames.Faction, out var f) && f != null)
                     state.Control[u.Node] = f.ToString() ?? "";
             }
             else if (u.Hex is { Length: >= 2 })
             {
                 c.Position = new HexCoord(u.Hex[0], u.Hex[1]);
-                c.Attributes.Remove("entryTurn");
-                c.Attributes.Remove("entryHex");
+                c.Attributes.Remove(ContractNames.EntryTurn);
+                c.Attributes.Remove(ContractNames.EntryHex);
             }
             else if (u.EntryTurn.HasValue && u.EntryHex is { Length: >= 2 })
             {
                 c.Position = null;
-                c.Attributes["entryTurn"] = (double)u.EntryTurn.Value;
-                c.Attributes["entryHex"] = new[] { u.EntryHex[0], u.EntryHex[1] };
+                c.Attributes[ContractNames.EntryTurn] = (double)u.EntryTurn.Value;
+                c.Attributes[ContractNames.EntryHex] = new[] { u.EntryHex[0], u.EntryHex[1] };
             }
         }
     }
 
-    public void Validate(GameDefinition def, List<string> issues)
+    public override void Validate(GameDefinition def, List<string> issues)
     {
         if (_scenario == null) return;
-        var gm = new GridMap(); // bounds only meaningful with the real map; checked in loader with host.MapData
         foreach (var u in _scenario.Units)
         {
             if (u.Key.Length == 0)

@@ -12,19 +12,28 @@ namespace Wpe.Rules.Counter;
 /// Every roster entry becomes a counter held off-board; the scenario layer then picks
 /// which ones fight and where. Attribute keys are constrained by the attribute contract.
 /// </summary>
-public sealed class GenericCounter : IRuleVariant
+public sealed class GenericCounter : RuleVariantBase, INameContributor
 {
     private readonly List<(string key, Dictionary<string, object> attrs)> _roster = new();
 
-    public VariantInfo Info => new()
+    /// <summary>Every attribute key declared in units.json is a legitimate counter attribute.</summary>
+    public void ContributeNames(NameContract contract)
+    {
+        foreach (var (_, attrs) in _roster)
+            foreach (var key in attrs.Keys)
+                contract.AddCounterAttr(key);
+    }
+
+    public override VariantInfo Info => new()
     {
         Subsystem = "counter",
         Id = "generic",
         Description = "通用算子目录：units.json 键 → 基础属性",
+        Provides = new[] { "roster" },
         Status = "stable"
     };
 
-    public void Load(string? configJson, GameDefinition def)
+    public override void Load(string? configJson, GameDefinition def)
     {
         if (configJson == null) return;
         using var doc = JsonDocument.Parse(configJson);
@@ -37,20 +46,18 @@ public sealed class GenericCounter : IRuleVariant
         }
     }
 
-    public void Register(ModuleHost host) { }
-
-    public void Apply(GameState state, GameEngine? engine)
+    public override void Apply(GameState state, GameEngine? engine)
     {
         foreach (var (key, attrs) in _roster)
         {
             var c = new CounterState { Id = state.Counters.Count, Side = Side.Front };
-            c.Attributes["key"] = key;
+            c.Attributes[ContractNames.Key] = key;
             foreach (var (k, v) in attrs) c.Attributes[k] = v;
             state.Counters.Add(c);
         }
     }
 
-    public void Validate(GameDefinition def, List<string> issues)
+    public override void Validate(GameDefinition def, List<string> issues)
     {
         var keys = _roster.Select(r => r.key).ToList();
         if (keys.Count != keys.Distinct().Count())

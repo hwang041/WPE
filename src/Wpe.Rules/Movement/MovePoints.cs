@@ -1,7 +1,6 @@
 using System.Text.Json;
 using Wpe.Core.Definition;
 using Wpe.Core.Engine;
-using Wpe.Core.Expressions;
 using Wpe.Core.Model;
 using Wpe.Core.Modules;
 
@@ -12,22 +11,24 @@ namespace Wpe.Rules.Movement;
 /// terrain (movement.json) and rivers modulate the per-step cost. Reachable area is
 /// a BFS flood-fill bounded by the unit's remaining moveLeft.
 /// </summary>
-public sealed class MovePoints : IRuleVariant, IMovementModule
+public sealed class MovePoints : RuleVariantBase, IMovementModule
 {
     private Dictionary<string, float>? _terrainCost;
     private Dictionary<string, float>? _terrainDefense;
     private float _riverCrossCost = 2f;
 
-    public VariantInfo Info => new()
+    public override VariantInfo Info => new()
     {
         Subsystem = "movement",
         Id = "movePoints",
         Description = "行动点移动：每格地形费 + 河流费，BFS 可达区域",
         Requires = new[] { "map" },
+        RequiresVariants = new[] { "map:hexGrid" },
+        Provides = new[] { "reachability", "moveCost", "riverCost" },
         Status = "stable"
     };
 
-    public void Load(string? configJson, GameDefinition def)
+    public override void Load(string? configJson, GameDefinition def)
     {
         if (configJson == null) return;
         using var doc = JsonDocument.Parse(configJson);
@@ -42,16 +43,16 @@ public sealed class MovePoints : IRuleVariant, IMovementModule
         }
     }
 
-    public void Register(ModuleHost host)
+    public override void Register(ModuleHost host)
     {
         host.Movement = this;
-        host.AddFunction("moveCost", (ctx, a) => (double)StepCost(ctx.State, Coord(a, ctx, 0), Coord(a, ctx, 1)));
-        host.AddFunction("move_cost", (ctx, a) => (double)StepCost(ctx.State, Coord(a, ctx, 0), Coord(a, ctx, 1)));
-        host.AddFunction("riverCost", (ctx, a) => (double)((ctx.State.Map as GridMap)?.RiverCost(Coord(a, ctx, 0), Coord(a, ctx, 1)) ?? 0));
-        host.AddFunction("river_cost", (ctx, a) => (double)((ctx.State.Map as GridMap)?.RiverCost(Coord(a, ctx, 0), Coord(a, ctx, 1)) ?? 0));
+        host.AddFunctionAliases((ctx, a) => (double)StepCost(ctx.State, ExprArgs.Coord(a, 0), ExprArgs.Coord(a, 1)),
+            "moveCost", "move_cost");
+        host.AddFunctionAliases((ctx, a) => (double)((ctx.State.Map as GridMap)?.RiverCost(ExprArgs.Coord(a, 0), ExprArgs.Coord(a, 1)) ?? 0),
+            "riverCost", "river_cost");
     }
 
-    public void Apply(GameState state, GameEngine? engine)
+    public override void Apply(GameState state, GameEngine? engine)
     {
         if (state.Map is not GridMap gm) return;
         if (_terrainCost != null) gm.OverlayCosts(_terrainCost, null);
@@ -59,7 +60,7 @@ public sealed class MovePoints : IRuleVariant, IMovementModule
         gm.RiverCrossCost = _riverCrossCost;
     }
 
-    public void Validate(GameDefinition def, List<string> issues)
+    public override void Validate(GameDefinition def, List<string> issues)
     {
         // terrain codes without a defined cost will silently use the default 1 — surface that.
         if (def.Moves.Values.Any(m => m.Kind == "movement") && _terrainCost == null)
@@ -76,7 +77,7 @@ public sealed class MovePoints : IRuleVariant, IMovementModule
         var result = new List<HexCoord>();
         var gm = engine.State.Map as GridMap;
         if (gm == null || !unit.OnBoard) return result;
-        var moveLeft = unit.AttributeFloat("moveLeft");
+        var moveLeft = unit.AttributeFloat(ContractNames.MoveLeft);
         var visited = new Dictionary<HexCoord, float> { [unit.Hex] = 0f };
         var queue = new Queue<HexCoord>();
         queue.Enqueue(unit.Hex);
@@ -108,17 +109,6 @@ public sealed class MovePoints : IRuleVariant, IMovementModule
     {
         if (state.Map is not GridMap gm) return 1f;
         return gm.TerrainCostAt(to) + gm.RiverCost(from, to);
-    }
-
-    private static HexCoord Coord(object?[] a, RuleContext ctx, int i)
-    {
-        if (a.Length <= i) return new HexCoord(0, 0);
-        return a[i] switch
-        {
-            HexCoord c => c,
-            CounterState c => c.Hex,
-            _ => new HexCoord(0, 0)
-        };
     }
 
     private static Dictionary<string, float> ParseFloatDict(JsonElement obj)

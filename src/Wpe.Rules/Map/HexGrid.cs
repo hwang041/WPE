@@ -1,6 +1,5 @@
 using System.Text.Json;
 using Wpe.Core.Definition;
-using Wpe.Core.Engine;
 using Wpe.Core.Expressions;
 using Wpe.Core.Model;
 using Wpe.Core.Modules;
@@ -11,19 +10,20 @@ namespace Wpe.Rules.Map;
 /// map / hexGrid — a rectangular hex grid authored entirely as data (map.json):
 /// terrain codes per hex, victory hexes, rivers along edges.
 /// </summary>
-public sealed class HexGrid : IRuleVariant
+public sealed class HexGrid : RuleVariantBase
 {
     private GridMap? _grid;
 
-    public VariantInfo Info => new()
+    public override VariantInfo Info => new()
     {
         Subsystem = "map",
         Id = "hexGrid",
         Description = "数据驱动六角格地图（地形/河流/胜利点）",
+        Provides = new[] { "terrain", "rivers", "victoryHexes" },
         Status = "stable"
     };
 
-    public void Load(string? configJson, GameDefinition def)
+    public override void Load(string? configJson, GameDefinition def)
     {
         if (configJson == null)
             throw new InvalidDataException("[map] 需要 map.json 配置文件");
@@ -33,21 +33,16 @@ public sealed class HexGrid : IRuleVariant
             _grid.Terrain = Enumerable.Repeat(new string('P', _grid.Columns), _grid.Rows).ToArray();
     }
 
-    public void Register(ModuleHost host)
+    public override void Register(ModuleHost host)
     {
         host.MapData = _grid;
-        host.AddFunction("terrainAt", (ctx, a) => Map(ctx).TerrainAt(Coord(a, 0)));
-        host.AddFunction("terrain", (ctx, a) => Map(ctx).TerrainAt(Coord(a, 0)));
-        host.AddFunction("terrainCost", (ctx, a) => (double)Map(ctx).TerrainCostAt(Coord(a, 0)));
-        host.AddFunction("terrain_cost", (ctx, a) => (double)Map(ctx).TerrainCostAt(Coord(a, 0)));
-        host.AddFunction("terrainDefense", (ctx, a) => (double)Map(ctx).TerrainDefenseAt(Coord(a, 0)));
-        host.AddFunction("terrain_defense", (ctx, a) => (double)Map(ctx).TerrainDefenseAt(Coord(a, 0)));
-        host.AddFunction("isVictoryHex", (ctx, a) => Map(ctx).IsVictoryHex(Coord(a, 0)));
+        host.AddFunctionAliases((ctx, a) => Map(ctx).TerrainAt(ExprArgs.Coord(a, 0)), "terrainAt", "terrain");
+        host.AddFunctionAliases((ctx, a) => (double)Map(ctx).TerrainCostAt(ExprArgs.Coord(a, 0)), "terrainCost", "terrain_cost");
+        host.AddFunctionAliases((ctx, a) => (double)Map(ctx).TerrainDefenseAt(ExprArgs.Coord(a, 0)), "terrainDefense", "terrain_defense");
+        host.AddFunction("isVictoryHex", (ctx, a) => Map(ctx).IsVictoryHex(ExprArgs.Coord(a, 0)));
     }
 
-    public void Apply(GameState state, GameEngine? engine) { }
-
-    public void Validate(GameDefinition def, List<string> issues)
+    public override void Validate(GameDefinition def, List<string> issues)
     {
         if (_grid == null) return;
         for (int r = 0; r < _grid.Terrain.Length; r++)
@@ -100,8 +95,6 @@ public sealed class HexGrid : IRuleVariant
     }
 
     private static IMap Map(RuleContext ctx) => ctx.State.Map ?? throw new ExprException("地图未加载");
-    private static HexCoord Coord(object?[] a, int i)
-        => a.Length > i && a[i] is HexCoord c ? c : new HexCoord(0, 0);
 
     private static readonly System.Text.Json.JsonSerializerOptions JsonOpts = new()
     {

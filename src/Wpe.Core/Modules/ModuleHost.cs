@@ -16,6 +16,8 @@ public sealed class VariantInfo
     public string Status { get; init; } = "stable";
     /// <summary>Subsystems that must be selected for this variant to work.</summary>
     public IReadOnlyList<string> Requires { get; init; } = Array.Empty<string>();
+    /// <summary>Specific variant requirements, e.g. "map:hexGrid" (a variant compatible only with one map kind).</summary>
+    public IReadOnlyList<string> RequiresVariants { get; init; } = Array.Empty<string>();
     /// <summary>Capabilities this variant provides to others.</summary>
     public IReadOnlyList<string> Provides { get; init; } = Array.Empty<string>();
 }
@@ -119,6 +121,12 @@ public sealed class ModuleHost
 
     // ---- functions ----
     public void AddFunction(string name, ExprFunc f) => _functions[name] = f;
+
+    /// <summary>Register the same handler under several names (camel/snake aliases).</summary>
+    public void AddFunctionAliases(ExprFunc f, params string[] names)
+    {
+        foreach (var n in names) _functions[n] = f;
+    }
 
     public object? Call(RuleContext ctx, string name, object?[] args)
     {

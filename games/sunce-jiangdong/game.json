@@ -18,6 +18,8 @@
   },
   "seed": 20240913,
   "phaseOrder": [ "card", "action" ],
+  "phaseLabels": { "card": "出牌", "action": "行动" },
+  "hudVars": [ "activations", "cardPlayed" ],
   "damage": { "strengthPenalty": 1, "movePenalty": 1 },
   "autoActWhenExhausted": false,
 

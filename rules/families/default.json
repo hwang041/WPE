@@ -1,0 +1,15 @@
+{
+  "family": "default",
+  "description": "默认家族预设：常用子系统全家桶，可被 game.json 的 rules 逐项覆盖。",
+  "variants": {
+    "map": "hexGrid",
+    "counter": "generic",
+    "scenario": "generic",
+    "movement": "movePoints",
+    "combat": "crTable",
+    "dice": "d6",
+    "turn": "phases",
+    "victory": "vpAndSudden",
+    "stacking": "unlimited"
+  }
+}

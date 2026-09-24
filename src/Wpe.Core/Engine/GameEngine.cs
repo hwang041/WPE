@@ -18,7 +18,6 @@ public sealed class GameEngine
     public IHook? Hook { get; }
 
     private readonly Dictionary<string, Expr> _exprCache = new();
-    private int _rollCounter;
 
     public GameEngine(GameDefinition def, GameState state, ModuleHost host, IHook? hook = null)
     {
@@ -42,7 +41,6 @@ public sealed class GameEngine
     {
         State.GameOver = false;
         State.ResultMessage = null;
-        _rollCounter = 0;
         Host.Rng = new SeededRandom(Def.Seed);
     }
 
@@ -107,14 +105,26 @@ public sealed class GameEngine
         return result;
     }
 
+    /// <summary>The move that ends the current phase — the first whose effects include "endphase".</summary>
+    public MoveDef? EndPhaseMove
+        => Def.Moves.Values.FirstOrDefault(m => m.Effects.Any(e => e.Effect == "endphase"));
+
+    /// <summary>Whether the end-phase move can be applied right now (used by the GUI/CLI).</summary>
+    public bool CanEndPhase(out string? error)
+    {
+        var m = EndPhaseMove;
+        if (m == null) { error = "未定义结束阶段行动"; return false; }
+        return CanApply(m.Id, null, null, null, out error);
+    }
+
     // ---- reachability / targets (delegated to the movement / combat seams) ----
 
     public List<HexCoord> ReachablePositions(CounterState unit)
     {
         var result = new List<HexCoord>();
         if (!unit.OnBoard) return result;
-        if (unit.AttributeInt("acted", 0) == 1) return result;
-        if (unit.IsBack) return result;
+        if (unit.AttributeInt(Def.ActedAttr, 0) == 1) return result;
+        if (Def.MoveBlockedWhenBack && unit.IsBack) return result;
         if (Host.Movement == null) return result;
         var reachable = Host.Movement.Reachable(unit, this);
         result.AddRange(reachable);
@@ -140,12 +150,29 @@ public sealed class GameEngine
         return result;
     }
 
-    private static bool ReferencesPositionOrTarget(string src)
+    /// <summary>Functions whose result depends on the target position/counter, so a validator
+    /// using them cannot be evaluated before a position has been chosen.</summary>
+    private static readonly HashSet<string> PositionDependentFuncs = new(StringComparer.OrdinalIgnoreCase)
     {
-        var s = src.ToLowerInvariant();
-        return s.Contains("target") || s.Contains("dist(") || s.Contains("adjacent")
-            || s.Contains("occupied") || s.Contains("movecost") || s.Contains("rivercost")
-            || s.Contains("inbounds") || s.Contains(" pos") || s.StartsWith("pos");
+        "dist", "distance", "adjacent", "occupied", "occupiedby", "occupied_by",
+        "inBounds", "in_bounds", "moveCost", "move_cost", "riverCost", "river_cost",
+        "terrainAt", "terrain", "terrainCost", "terrain_cost", "terrainDefense", "terrain_defense",
+        "isVictoryHex", "stackcount", "nodetype", "space_type"
+    };
+
+    /// <summary>True when the expression depends on the (not-yet-chosen) target — via a root
+    /// variable or a position-dependent function. AST-based, replaces the old string sniffing.</summary>
+    private bool ReferencesPositionOrTarget(string src)
+    {
+        var refs = Compile(src).Refs;
+        foreach (var root in refs.Roots)
+            if (root.Equals("pos", StringComparison.OrdinalIgnoreCase) ||
+                root.Equals("target", StringComparison.OrdinalIgnoreCase) ||
+                root.Equals("targetcounter", StringComparison.OrdinalIgnoreCase))
+                return true;
+        foreach (var call in refs.Calls)
+            if (PositionDependentFuncs.Contains(call)) return true;
+        return false;
     }
 
     // ---- validation & application ----
@@ -240,10 +267,10 @@ public sealed class GameEngine
         State.LogMessage($"{move.Label}{(counter != null ? " [" + counter.Name + "]" : "")}{(target != null ? " → " + target.Name : "")}");
 
         // auto-end the action: if the actor can neither move nor attack any more, mark it acted.
-        if (Def.AutoActWhenExhausted && counter != null && counter.AttributeInt("acted", 0) == 0 &&
+        if (Def.AutoActWhenExhausted && counter != null && counter.AttributeInt(Def.ActedAttr, 0) == 0 &&
             !HasRemainingAction(counter))
         {
-            counter.Attributes["acted"] = 1;
+            counter.Attributes[Def.ActedAttr] = 1;
             State.LogMessage($"{counter.Name} 移动力/攻击用尽，行动结束");
         }
 
@@ -253,7 +280,7 @@ public sealed class GameEngine
 
     public bool HasRemainingAction(CounterState unit)
     {
-        if (unit.AttributeInt("acted", 0) == 1) return false;
+        if (unit.AttributeInt(Def.ActedAttr, 0) == 1) return false;
         if (!unit.OnBoard) return false;
         foreach (var move in Def.Moves.Values)
         {
@@ -291,8 +318,9 @@ public sealed class GameEngine
 
     private void ExecuteRoll(RuleContext ctx, RollSpec roll)
     {
-        _rollCounter++;
-        var seed = (int)(Environment.TickCount ^ (_rollCounter * 2654435761L));
+        // Draw the per-roll seed from the deterministic RNG so the whole game replays
+        // identically for a given Def.Seed (Environment.TickCount broke reproducibility).
+        var seed = Host.Rng.Next(int.MinValue, int.MaxValue);
         var values = Host.Dice != null
             ? Host.Dice.Roll(roll, seed)
             : new SeededRandom(seed).RollDice(roll.Count, roll.Sides);
@@ -469,10 +497,10 @@ public sealed class GameEngine
             else
             {
                 c.Side = Side.Back;
-                if (c.Attributes.TryGetValue("moveLeft", out var ml) &&
+                if (c.Attributes.TryGetValue(ContractNames.MoveLeft, out var ml) &&
                     double.TryParse(ml?.ToString(), System.Globalization.NumberStyles.Float,
                         System.Globalization.CultureInfo.InvariantCulture, out var cur))
-                    c.Attributes["moveLeft"] = cur - Def.Damage.MovePenalty;
+                    c.Attributes[ContractNames.MoveLeft] = cur - Def.Damage.MovePenalty;
                 State.LogMessage($"{c.Name} 无路可退，受创");
             }
         }
@@ -504,7 +532,7 @@ public sealed class GameEngine
         {
             State.LogMessage($"进入阶段: {State.CurrentPhase}");
         }
-        if (State.CurrentPhase == "action") ApplyTurnReset();
+        if (State.CurrentPhase == Def.TurnResetPhase) ApplyTurnReset();
         FireTriggers("phaseStart", State.CurrentPhase);
     }
 
@@ -518,53 +546,8 @@ public sealed class GameEngine
         FireTriggers("turnStart", State.CurrentPhase);
     }
 
-    /// <summary>Spawn reinforcements whose entryTurn == current turn at their entry hex (nearest free if occupied).</summary>
-    public void SpawnReinforcements()
-    {
-        var map = State.Map;
-        if (map == null) return;
-        var used = State.CountersOnBoard().Select(c => c.Hex).ToHashSet();
-
-        foreach (var c in State.Counters)
-        {
-            var et = c.AttributeInt("entryTurn", -1);
-            if (et != State.TurnNumber) continue;
-            if (c.OnBoard) continue;
-            if (!c.Attributes.TryGetValue("entryHex", out var h) || h is not int[] qr || qr.Length < 2) continue;
-
-            var start = new HexCoord(qr[0], qr[1]);
-            var pos = start;
-            if (used.Contains(start) || !map.InBounds(start))
-            {
-                var queue = new Queue<HexCoord>();
-                var visited = new HashSet<HexCoord>();
-                queue.Enqueue(start); visited.Add(start);
-                bool found = false;
-                while (queue.Count > 0)
-                {
-                    var cur = queue.Dequeue();
-                    if (!used.Contains(cur) && map.InBounds(cur))
-                    {
-                        pos = cur; found = true; break;
-                    }
-                    foreach (var n in map.Neighbors(cur))
-                        if (map.InBounds(n) && visited.Add(n))
-                            queue.Enqueue(n);
-                }
-                if (!found) continue;
-            }
-
-            c.Position = pos;
-            used.Add(pos);
-            State.LogMessage($"援军进场：{c.Name} 于 ({start.Q},{start.R})");
-        }
-    }
-
-    private void ApplyTurnReset()
-    {
-        SpawnReinforcements();
-        Host.Turn?.OnTurnStart(this);
-    }
+    /// <summary>Dispatch per-turn bookkeeping to the turn subsystem (reinforcements, resets).</summary>
+    private void ApplyTurnReset() => Host.Turn?.OnTurnStart(this);
 
     // ---- triggers & victory ----
 

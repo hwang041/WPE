@@ -19,7 +19,7 @@ public sealed class UnlimitedStacking : RuleVariantBase, IStackingModule
         Subsystem = "stacking",
         Id = "unlimited",
         Description = "无限堆叠：一格可放任意数量算子",
-        Provides = new[] { "stackcount", "stacklimit" },
+        Provides = new[] { "stacking", "stackcount", "stacklimit" },
         Status = "stable"
     };
 
@@ -45,7 +45,7 @@ public sealed class PerHexStacking : RuleVariantBase, IStackingModule
         Subsystem = "stacking",
         Id = "perHex",
         Description = "每格堆叠上限：maxPerHex 个算子/格",
-        Provides = new[] { "stackcount", "stacklimit" },
+        Provides = new[] { "stacking", "stackcount", "stacklimit" },
         Status = "stable"
     };
 

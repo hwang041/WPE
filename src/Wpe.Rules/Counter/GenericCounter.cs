@@ -15,7 +15,7 @@ public sealed class GenericCounter : RosterCounterBase, ICounterModule
         Subsystem = "counter",
         Id = "generic",
         Description = "通用算子目录：units.json 键 → 基础属性；正背两态战力/移动",
-        Provides = new[] { "roster", "effStr", "effMove" },
+        Provides = new[] { "counter", "roster", "effStr", "effMove" },
         Status = "stable"
     };
 

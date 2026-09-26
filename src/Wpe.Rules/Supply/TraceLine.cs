@@ -26,7 +26,7 @@ public sealed class TraceLine : RuleVariantBase, ISupplyModule
         Id = "traceLine",
         Description = "补给线：从单位沿相邻格追溯至本方补给源，敌单位/敌 ZOC/地形可阻断",
         Requires = new[] { "map", "counter" },
-        Provides = new[] { "supply", "inSupply", "traceLine" },
+        Provides = new[] { "supply", "inSupply", "outOfSupply", "supplyDistance", "isSupplySource" },
         Status = "stable"
     };
 
@@ -118,7 +118,7 @@ public sealed class TraceLine : RuleVariantBase, ISupplyModule
 
                 if (_blockedByEnemyUnit && state.CountersOnBoard().Any(c =>
                         c.Hex == n && c.AttributeInt(ContractNames.Owner, -1) != owner)) continue;
-                if (_host?.Control != null && _blockedByEnemyZoc && _host.Control.IsEnemyZoc(state, n, owner)) continue;
+                if (_host?.Zoc != null && _blockedByEnemyZoc && _host.Zoc.IsEnemyZoc(state, n, owner)) continue;
 
                 hops[n] = nhops;
                 costs[n] = ncost;

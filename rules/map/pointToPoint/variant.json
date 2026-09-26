@@ -6,7 +6,7 @@
   "description": "数据驱动点对点地图（城镇节点 + 道路），节点城防/势力",
   "configFile": "spacemap.json",
   "requires": [],
-  "provides": ["nodes", "roads", "nodetype", "controllednodes", "occupiedby", "terrainDefense"],
+  "provides": ["map", "nodes", "roads", "nodetype", "controllednodes", "occupiedby", "terrainDefense"],
   "configSchema": {
     "name": "string 地图名",
     "nodeRadius": "float 节点半径(命中/绘制)",

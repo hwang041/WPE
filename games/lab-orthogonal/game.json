@@ -1,0 +1,77 @@
+{
+  "id": "lab-orthogonal",
+  "name": "实验场 · 正交组合",
+  "description": "正交性证明：同时启用 zoc（控制区）+ territory（领地归属）+ objectives/attrition（两套胜利规则）+ supply。现行旧设计会因同分类互斥而报错，本包证明它们互不干扰。",
+  "playerCount": 2,
+  "family": "default",
+  "rules": {
+    "map":      { "variant": "hexGrid",     "file": "map.json" },
+    "counter":  { "variant": "generic",     "file": "units.json" },
+    "zoc":      { "variant": "zoc", "config": { "stopOnEnter": true, "exitCost": 1 } },
+    "territory":{ "variant": "controlPoints", "config": { "initialFromUnits": true } },
+    "supply":   { "variant": "traceLine", "config": {
+      "sources": { "0": [ "0,0" ], "1": [ "5,3" ] },
+      "blockedByEnemyUnit": true
+    } },
+    "movement": { "variant": "zoc",        "file": "movement.json" },
+    "combat":   { "variant": "crTable",     "file": "combat.json" },
+    "scenario": { "variant": "generic",     "file": "scenario.json" },
+    "victory":  [ { "variant": "objectives" }, { "variant": "attrition" } ]
+  },
+  "phaseOrder": [ "action" ],
+  "phaseLabels": { "action": "行动" },
+  "damage": { "strengthPenalty": 1, "movePenalty": 1 },
+  "autoActWhenExhausted": true,
+  "turnReset": [
+    { "attr": "acted", "value": "0" },
+    { "attr": "moveLeft", "value": "expr:if(inSupply(counter), effMove(counter), max(0, effMove(counter) - 2))" }
+  ],
+  "moves": {
+    "endphase": { "id": "endphase", "label": "结束阶段", "effects": [ { "effect": "endphase" } ] },
+    "move": {
+      "id": "move", "kind": "movement", "label": "移动/占领",
+      "phase": "action", "needsCounter": true, "needsPosition": true,
+      "counterFilter": "counter.owner == me",
+      "validators": [
+        "notacted(counter)", "isfront(counter)", "inBounds(pos)",
+        "dist(counter, pos) == 1",
+        "moveCost(counter, pos) + if(inZoc(counter), 1, 0) <= counter.moveLeft",
+        "not(occupied(pos))"
+      ],
+      "effects": [
+        { "effect": "setattr", "counter": "counter", "key": "moveLeft",
+          "value": "counter.moveLeft - moveCost(counter, pos) - if(inZoc(counter), 1, 0)" },
+        { "effect": "move", "counter": "counter", "to": "pos" },
+        { "effect": "control", "counter": "counter", "value": "me" },
+        { "effect": "setattr", "counter": "counter", "key": "acted", "value": "1", "when": "inZoc(pos)" }
+      ]
+    },
+    "attack": {
+      "id": "attack", "kind": "combat", "label": "攻击",
+      "phase": "action", "needsCounter": true, "needsTargetCounter": true,
+      "counterFilter": "counter.owner == me", "targetFilter": "target.owner != me",
+      "validators": [ "notacted(counter)", "isfront(counter)", "dist(counter, target) == 1" ],
+      "roll": { "var": "roll", "count": 1, "sides": 6, "hand": 0 },
+      "combat": "combat",
+      "effects": [ { "effect": "setattr", "counter": "counter", "key": "acted", "value": "1" } ],
+      "resultEffects": {
+        "Dd": [
+          { "effect": "eliminate", "counter": "target" },
+          { "effect": "advance", "counter": "counter" }
+        ]
+      }
+    },
+    "pass": {
+      "id": "pass", "kind": "pass", "label": "结束行动",
+      "isEndAction": true, "phase": "action", "needsCounter": true,
+      "counterFilter": "counter.owner == me", "validators": [ "notacted(counter)" ],
+      "effects": [ { "effect": "setattr", "counter": "counter", "key": "acted", "value": "1" } ]
+    }
+  },
+  "endConditions": [
+    { "when": "objectivesHeld(0) >= 2", "message": "红方控制全部目标点！", "winner": 0 },
+    { "when": "destroyedStrength(0) >= 8", "message": "红方歼敌达成！", "winner": 0 },
+    { "when": "enemycount(0) == 0", "message": "红方全歼敌军！", "winner": 0 },
+    { "when": "enemycount(1) == 0", "message": "蓝方全歼敌军！", "winner": 1 }
+  ]
+}

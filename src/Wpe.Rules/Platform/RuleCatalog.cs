@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Wpe.Core.Loading;
 using Wpe.Core.Modules;
 
@@ -15,25 +16,37 @@ public sealed class VariantMeta
     public string[] Requires { get; init; } = Array.Empty<string>();
     public string[] RequiresVariants { get; init; } = Array.Empty<string>();
     public string[] Provides { get; init; } = Array.Empty<string>();
+    public string[] Overrides { get; init; } = Array.Empty<string>();
     public string? ConfigFile { get; init; }
 
     public string Key => $"{Subsystem}/{Id}";
 }
 
 /// <summary>
-/// The rule library as data: reads rules/&lt;subsystem&gt;/&lt;variant&gt;/variant.json (metadata)
+/// The rule library as data: reads rules/&lt;category&gt;/&lt;variant&gt;/variant.json (metadata)
 /// and rules/families/&lt;name&gt;.json (presets). Together with <see cref="VariantRegistry"/>
 /// (which finds the code) this makes the library discoverable without hardcoded lists.
 /// </summary>
 public sealed class RuleCatalog
 {
-    /// <summary>Subsystem load order (map first: it builds the shared map data).</summary>
-    public static readonly string[] SubsystemOrder =
-        { "map", "counter", "control", "supply", "movement", "combat", "dice", "turn", "victory", "scenario", "cards", "stacking" };
+    /// <summary>Stable ordering of the exclusive capabilities for Load/Register/Apply
+    /// (map first: it builds the shared map data; scenario after counter; territory last
+    /// among state builders). Contributions sort after all exclusive ones.</summary>
+    public static readonly string[] CapabilityOrder =
+        { "map", "counter", "scenario", "zoc", "territory", "cards", "movement", "supply", "combat", "dice", "turn" };
 
-    /// <summary>Order in which variants Apply() to the built state (game data merges last).</summary>
-    public static readonly string[] ApplyOrder =
-        { "map", "counter", "scenario", "control", "cards", "movement" };
+    public static int RankOf(IEnumerable<string> provides)
+    {
+        var caps = provides.Where(Capabilities.IsExclusive).ToList();
+        if (caps.Count == 0) return int.MaxValue; // contributions (functions/effects)
+        int best = int.MaxValue;
+        foreach (var c in caps)
+        {
+            int i = Array.FindIndex(CapabilityOrder, x => string.Equals(x, c, StringComparison.OrdinalIgnoreCase));
+            if (i >= 0 && i < best) best = i;
+        }
+        return best;
+    }
 
     private static readonly JsonSerializerOptions JsonOpts = new()
     {
@@ -43,10 +56,10 @@ public sealed class RuleCatalog
     };
 
     public string RootDir { get; }
-    /// <summary>variant metadata keyed by "subsystem/id".</summary>
+    /// <summary>variant metadata keyed by "category/id".</summary>
     public Dictionary<string, VariantMeta> Variants { get; } = new();
-    /// <summary>family preset name -> subsystem -> variant id.</summary>
-    public Dictionary<string, Dictionary<string, string>> Presets { get; } = new();
+    /// <summary>family preset name -> category -> variant ids (one or more per category).</summary>
+    public Dictionary<string, Dictionary<string, List<string>>> Presets { get; } = new();
 
     public const string DefaultFamily = "default";
 
@@ -121,12 +134,13 @@ public sealed class RuleCatalog
         return issues;
     }
 
-    /// <summary>variant.json and code must declare the same requires / requiresVariants / provides.</summary>
+    /// <summary>variant.json and code must declare the same requires / requiresVariants / provides / overrides.</summary>
     private static void CompareDeclarations(string key, VariantMeta meta, VariantInfo info, List<string> issues)
     {
         Compare("requires", meta.Requires, info.Requires, key, issues);
         Compare("requiresVariants", meta.RequiresVariants, info.RequiresVariants, key, issues);
         Compare("provides", meta.Provides, info.Provides, key, issues);
+        Compare("overrides", meta.Overrides, info.Overrides, key, issues);
     }
 
     private static void Compare(string field, IEnumerable<string> disk, IEnumerable<string> code, string key, List<string> issues)
@@ -139,17 +153,55 @@ public sealed class RuleCatalog
 
     private static string Join(IEnumerable<string> xs) => string.Join(", ", xs.OrderBy(x => x, StringComparer.Ordinal));
 
-    public bool TryGetPreset(string family, out IReadOnlyDictionary<string, string> preset)
+    public bool TryGetPreset(string family, out Dictionary<string, List<string>> preset)
     {
         if (Presets.TryGetValue(family, out var p)) { preset = p; return true; }
-        preset = new Dictionary<string, string>();
+        preset = new Dictionary<string, List<string>>();
         return false;
     }
 
     private sealed class FamilyFile
     {
         public string Family { get; set; } = "";
-        public Dictionary<string, string> Variants { get; set; } = new();
+
+        [JsonConverter(typeof(StringOrArrayConverter))]
+        public Dictionary<string, List<string>> Variants { get; set; } = new();
+    }
+
+    /// <summary>Accepts either "cat": "id" or "cat": ["id1","id2"].</summary>
+    private sealed class StringOrArrayConverter : JsonConverter<Dictionary<string, List<string>>>
+    {
+        public override Dictionary<string, List<string>> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            var result = new Dictionary<string, List<string>>();
+            using var doc = JsonDocument.ParseValue(ref reader);
+            foreach (var prop in doc.RootElement.EnumerateObject())
+            {
+                var list = new List<string>();
+                if (prop.Value.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var el in prop.Value.EnumerateArray())
+                        if (el.GetString() is { Length: > 0 } s) list.Add(s);
+                }
+                else if (prop.Value.ValueKind == JsonValueKind.String && prop.Value.GetString() is { Length: > 0 } single)
+                {
+                    list.Add(single);
+                }
+                result[prop.Name] = list;
+            }
+            return result;
+        }
+
+        public override void Write(Utf8JsonWriter writer, Dictionary<string, List<string>> value, JsonSerializerOptions options)
+        {
+            writer.WriteStartObject();
+            foreach (var (k, list) in value)
+            {
+                if (list.Count == 1) writer.WriteString(k, list[0]);
+                else { writer.WritePropertyName(k); writer.WriteStartArray(); foreach (var v in list) writer.WriteStringValue(v); writer.WriteEndArray(); }
+            }
+            writer.WriteEndObject();
+        }
     }
 
     /// <summary>Walk up from the exe to find the repo's rules/ folder.</summary>

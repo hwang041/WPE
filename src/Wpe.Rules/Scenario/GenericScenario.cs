@@ -21,8 +21,8 @@ public sealed class GenericScenario : RuleVariantBase
         Subsystem = "scenario",
         Id = "generic",
         Description = "通用剧本：选算子 + 势力/数值覆盖 + 部署/援军",
-        Requires = new[] { "map" },
-        Provides = new[] { "deployment", "reinforcements" },
+        Requires = new[] { "map", "counter" },
+        Provides = new[] { "scenario", "deployment", "reinforcements" },
         Status = "stable"
     };
 
@@ -59,7 +59,7 @@ public sealed class GenericScenario : RuleVariantBase
                 c.Attributes.Remove(ContractNames.EntryTurn);
                 c.Attributes.Remove(ContractNames.EntryHex);
                 if (c.Attributes.TryGetValue(ContractNames.Faction, out var f) && f != null)
-                    state.Control[u.Node] = f.ToString() ?? "";
+                    state.Territory[u.Node] = f.ToString() ?? "";
             }
             else if (u.Hex is { Length: >= 2 })
             {

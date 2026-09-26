@@ -304,7 +304,7 @@ public static class Program
         }
         var catalog = RuleCatalog.Load();
         var registry = new VariantRegistry();
-        Console.WriteLine("规则库变体 (子系统/变体/状态/说明):");
+        Console.WriteLine("规则库变体 (分类/变体/状态/说明):");
         foreach (var meta in catalog.Variants.Values.OrderBy(v => v.Subsystem).ThenBy(v => v.Id))
             Console.WriteLine($"  {meta.Subsystem,-10} {meta.Id,-14} {meta.Status,-8} {meta.Description}");
         foreach (var issue in catalog.Reconcile(registry))
@@ -401,7 +401,7 @@ public static class Program
         var outPath = args.Length > 2 ? Path.GetFullPath(args[2]) : Path.Combine(game.GameDir, "map-overlay.png");
         var nums = args.Contains("--nums");
         using var bmp = MapRenderer.Render(map, game.State.CountersOnBoard().ToList(), showHexNumbers: nums,
-            factions: game.Def.Factions, nodeTypes: game.Def.NodeTypes, control: game.State.Control);
+            factions: game.Def.Factions, nodeTypes: game.Def.NodeTypes, territory: game.State.Territory);
         CounterRenderer.SavePng(bmp, outPath);
         if (map is GridMap grid)
         {

@@ -5,8 +5,8 @@
   "status": "stable",
   "description": "通用剧本：选算子 + 势力/数值覆盖 + 部署/援军",
   "configFile": "scenario.json",
-  "requires": ["map"],
-  "provides": ["deployment", "reinforcements"],
+  "requires": ["map", "counter"],
+  "provides": ["scenario", "deployment", "reinforcements"],
   "configSchema": {
     "units": [
       {

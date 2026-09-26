@@ -6,7 +6,6 @@
   "rules": {
     "map":      { "variant": "hexGrid",    "file": "map.json" },
     "counter":  { "variant": "stepped",    "file": "units.json" },
-    "control":  { "variant": "off" },
     "movement": { "variant": "movePoints", "file": "movement.json" },
     "combat":   { "variant": "stepLoss",   "file": "combat.json" },
     "scenario": { "variant": "generic",    "file": "scenario.json" }

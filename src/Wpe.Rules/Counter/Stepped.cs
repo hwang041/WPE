@@ -17,7 +17,7 @@ public sealed class Stepped : RosterCounterBase, ICounterModule
         Subsystem = "counter",
         Id = "stepped",
         Description = "多步算子：steps/maxSteps 派生战力，steploss 削减（半力翻面、归零歼灭）",
-        Provides = new[] { "roster", "effStr", "steploss" },
+        Provides = new[] { "counter", "roster", "effStr", "steploss" },
         Status = "stable"
     };
 

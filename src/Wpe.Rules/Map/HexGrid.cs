@@ -19,7 +19,7 @@ public sealed class HexGrid : RuleVariantBase
         Subsystem = "map",
         Id = "hexGrid",
         Description = "数据驱动六角格地图（地形/河流/胜利点）",
-        Provides = new[] { "terrain", "rivers", "victoryHexes" },
+        Provides = new[] { "map", "terrain", "rivers", "victoryHexes" },
         Status = "stable"
     };
 

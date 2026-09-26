@@ -23,7 +23,7 @@ public sealed class StepLoss : RuleVariantBase, ICombatModule
         Id = "stepLoss",
         Description = "双方步损 CRT：结果码 '攻/守' → attLoss/defLoss 数值",
         Requires = new[] { "dice" },
-        Provides = new[] { "combatResolution", "stepLoss" },
+        Provides = new[] { "combat", "combatResolution", "stepLoss" },
         Status = "stable"
     };
 

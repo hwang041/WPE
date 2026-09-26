@@ -6,7 +6,7 @@
   "description": "数据驱动六角格地图（地形/河流/胜利点）",
   "configFile": "map.json",
   "requires": [],
-  "provides": ["terrain", "rivers", "victoryHexes"],
+  "provides": ["map", "terrain", "rivers", "victoryHexes"],
   "configSchema": {
     "columns": "int 列数",
     "rows": "int 行数",

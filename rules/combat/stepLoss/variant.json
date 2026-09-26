@@ -6,7 +6,7 @@
   "description": "双方步损 CRT：结果码 '攻/守' → attLoss/defLoss 数值",
   "configFile": "combat.json",
   "requires": ["dice"],
-  "provides": ["combatResolution", "stepLoss"],
+  "provides": ["combat", "combatResolution", "stepLoss"],
   "configSchema": {
     "<combatId>": {
       "rowExpr": "战力比表达式",

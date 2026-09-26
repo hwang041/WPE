@@ -1,0 +1,9 @@
+{
+  "subsystem": "zoc",
+  "id": "off",
+  "version": "1.0.0",
+  "status": "stable",
+  "description": "关闭控制区：无 ZOC（中性函数）",
+  "requires": [],
+  "provides": ["zoc"]
+}

@@ -27,8 +27,8 @@ public sealed class PackageResult
 
 /// <summary>
 /// The middle platform's package loader: reads a game folder (game.json + the table
-/// files), assembles the selected rule variants, validates everything, and hands back
-/// a running engine. This is where "fill tables -> play" happens.
+/// files), assembles the selected rules (a set of orthogonal rules, possibly several
+/// per category), validates them by capability, and hands back a running engine.
 /// </summary>
 public static class PackageLoader
 {
@@ -64,22 +64,31 @@ public static class PackageLoader
         var catalog = RuleCatalog.Load();
         result.Errors.AddRange(catalog.Reconcile(registry));
 
-        // 3) resolve variant selection (family preset + per-subsystem overrides)
+        // 3) resolve rule selection (family preset + per-category overrides)
         var selection = ResolveSelection(def, catalog, result);
 
-        // 4) instantiate variants
+        // 4) instantiate rules, ordered by capability (map first, contributions last)
         var host = new ModuleHost();
         CoreFunctions.Seed(host, def);
-        foreach (var subsystem in RuleCatalog.SubsystemOrder)
+
+        var instances = new List<(RuleSelection sel, IRuleVariant variant)>();
+        foreach (var sel in selection)
         {
-            if (!selection.TryGetValue(subsystem, out var sel)) continue;
-            var variant = registry.Create(subsystem, sel.Variant);
+            var variant = registry.Create(sel.Category, sel.Variant);
             if (variant == null)
             {
-                result.Errors.Add($"[rules] 未知变体 '{sel.Variant}'（子系统 {subsystem}）");
+                result.Errors.Add($"[rules] 未知变体 '{sel.Variant}'（分类 {sel.Category}）");
                 continue;
             }
-            host.AddVariant(variant);
+            instances.Add((sel, variant));
+        }
+        foreach (var (sel, variant) in instances
+                     .OrderBy(x => RuleCatalog.RankOf(x.variant.Info.Provides))
+                     .ThenBy(x => x.sel.Category, StringComparer.Ordinal)
+                     .ThenBy(x => x.sel.Variant, StringComparer.Ordinal))
+        {
+            host.AddRule(variant);
+            host.BeginRule($"{sel.Category}/{sel.Variant}", variant.Info.Overrides);
             try
             {
                 variant.Load(ReadConfig(sel, gameDir, result), def);
@@ -87,14 +96,16 @@ public static class PackageLoader
             }
             catch (Exception ex)
             {
-                result.Errors.Add($"[{subsystem}/{sel.Variant}] 配置加载失败: {ex.Message}");
+                result.Errors.Add($"[{sel.Category}/{sel.Variant}] 配置加载失败: {ex.Message}");
             }
         }
+        host.BeginRule("");
+        result.Errors.AddRange(host.NameConflicts);
 
-        // 4) composition checks
-        CheckComposition(def, selection, host, result);
+        // 5) composition checks (capability based)
+        CheckComposition(def, host, result);
 
-        // 5) per-variant validation
+        // 6) per-variant validation
         foreach (var v in host.AllVariants)
         {
             var sub = v.Info.Subsystem;
@@ -102,7 +113,7 @@ public static class PackageLoader
             catch (Exception ex) { result.Errors.Add($"[{sub}/{v.Info.Id}] 校验异常: {ex.Message}"); }
         }
 
-        // 6) name contract + expression validation (functions = error, names = warning)
+        // 7) name contract + expression validation (functions = error, names = warning)
         var contract = NameContract.Create();
         contract.ContributeFromGame(def);
         foreach (var v in host.AllVariants)
@@ -114,12 +125,12 @@ public static class PackageLoader
 
         if (result.Errors.Count > 0) return result;
 
-        // 7) build state
+        // 8) build state; Apply in the same capability order
         try
         {
             var state = new GameState(def) { Map = host.MapData };
-            foreach (var sub in RuleCatalog.ApplyOrder)
-                host.GetVariant(sub)?.Apply(state, null);
+            foreach (var v in host.AllVariants)
+                v.Apply(state, null);
 
             // resolve each counter's faction colour from the game's palette (renderers stay game-agnostic)
             foreach (var c in state.Counters)
@@ -159,22 +170,27 @@ public static class PackageLoader
 
     // ---- resolution / config ----
 
-    private static Dictionary<string, VariantSelection> ResolveSelection(GameDefinition def, RuleCatalog catalog, PackageResult result)
+    private static List<RuleSelection> ResolveSelection(GameDefinition def, RuleCatalog catalog, PackageResult result)
     {
         if (!catalog.TryGetPreset(def.Family, out var preset))
         {
             result.Warnings.Add($"[rules] 未知家族预设 '{def.Family}'，回退到 '{RuleCatalog.DefaultFamily}'");
             catalog.TryGetPreset(RuleCatalog.DefaultFamily, out preset);
         }
-        var selection = new Dictionary<string, VariantSelection>();
-        foreach (var (sub, id) in preset)
-            selection[sub] = new VariantSelection { Variant = id };
-        foreach (var (sub, sel) in def.Rules)
-            selection[sub] = sel;
-        return selection;
+
+        var byCategory = new Dictionary<string, List<RuleSelection>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (category, ids) in preset)
+            byCategory[category] = ids.Select(id => new RuleSelection { Category = category, Variant = id }).ToList();
+        // a game override replaces the whole list for that category
+        foreach (var (category, sels) in def.Rules)
+            byCategory[category] = sels
+                .Select(s => new RuleSelection { Category = category, Variant = s.Variant, File = s.File, Config = s.Config })
+                .ToList();
+
+        return byCategory.Values.SelectMany(x => x).ToList();
     }
 
-    private static string? ReadConfig(VariantSelection sel, string gameDir, PackageResult result)
+    private static string? ReadConfig(RuleSelection sel, string gameDir, PackageResult result)
     {
         if (sel.Config != null)
             return JsonSerializer.Serialize(sel.Config, JsonUtil.Opts);
@@ -182,7 +198,7 @@ public static class PackageLoader
         var path = Path.Combine(gameDir, sel.File);
         if (!File.Exists(path))
         {
-            result.Errors.Add($"找不到配置文件 {sel.File}");
+            result.Errors.Add($"找不到配置文件 {sel.File}（分类 {sel.Category}）");
             return null;
         }
         return File.ReadAllText(path);
@@ -202,35 +218,48 @@ public static class PackageLoader
 
     // ---- validation ----
 
-    private static void CheckComposition(GameDefinition def, Dictionary<string, VariantSelection> selection,
-        ModuleHost host, PackageResult result)
+    private static void CheckComposition(GameDefinition def, ModuleHost host, PackageResult result)
     {
-        foreach (var (sub, sel) in selection)
-        {
-            var v = host.GetVariant(sub);
-            if (v == null) continue;
-            foreach (var need in v.Info.Requires)
-                if (!selection.ContainsKey(need))
-                    result.Errors.Add($"[rules] 变体 {sub}/{v.Info.Id} 依赖子系统 '{need}'，但未启用");
-            foreach (var need in v.Info.RequiresVariants)
-            {
-                var parts = need.Split(':', 2);
-                if (parts.Length != 2) continue;
-                if (!selection.TryGetValue(parts[0], out var needSel) || needSel.Variant != parts[1])
-                    result.Errors.Add($"[rules] 变体 {sub}/{v.Info.Id} 需要 {need}，但当前 {parts[0]} 是 '{needSel?.Variant ?? "未启用"}'");
-            }
-        }
+        var provided = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var v in host.AllVariants)
+            foreach (var p in v.Info.Provides) provided.Add(p);
 
+        // every required capability must be provided by some selected rule
+        foreach (var v in host.AllVariants)
+            foreach (var req in v.Info.Requires)
+                if (!provided.Contains(req))
+                    result.Errors.Add($"[rules] 规则 {v.Info.Subsystem}/{v.Info.Id} 依赖能力 '{req}'，但没有任何已选规则提供它");
+
+        // an exclusive capability may have at most one provider
+        var owners = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var v in host.AllVariants)
+            foreach (var cap in v.Info.Provides.Where(Capabilities.IsExclusive))
+            {
+                var who = $"{v.Info.Subsystem}/{v.Info.Id}";
+                if (owners.TryGetValue(cap, out var prev))
+                    result.Errors.Add($"[rules] 独占能力 '{cap}' 被 {prev} 与 {who} 同时提供（同能力只能选一个）");
+                else owners[cap] = who;
+            }
+
+        // specific variant pins, e.g. "map:hexGrid"
+        foreach (var v in host.AllVariants)
+            foreach (var pin in v.Info.RequiresVariants)
+            {
+                var parts = pin.Split(':', 2);
+                if (parts.Length != 2) continue;
+                if (!host.HasRule(parts[0], parts[1]))
+                    result.Errors.Add($"[rules] 规则 {v.Info.Subsystem}/{v.Info.Id} 需要 {pin}，但未选择该变体");
+            }
+
+        // runtime safety: features in use must have their seam present
         if (def.Moves.Values.Any(m => m.Roll != null) && host.Dice == null)
-            result.Errors.Add("[rules] 存在掷骰行动但未启用 dice 子系统");
+            result.Errors.Add("[rules] 存在掷骰行动但未启用 dice 能力");
         if (def.Moves.Values.Any(m => !string.IsNullOrEmpty(m.Combat)) && host.Combat == null)
-            result.Errors.Add("[rules] 存在战斗行动但未启用 combat 子系统");
+            result.Errors.Add("[rules] 存在战斗行动但未启用 combat 能力");
         if (def.Moves.Values.Any(m => m.Kind == "movement") && host.Movement == null)
-            result.Errors.Add("[rules] 存在移动行动但未启用 movement 子系统");
-        if (def.Moves.Values.Any(m => m.NeedsCard) && host.GetVariant("cards") == null)
-            result.Errors.Add("[rules] 存在出牌行动 (needsCard) 但未启用 cards 子系统");
-        if (def.EndConditions.Count > 0 && host.Victory == null)
-            result.Warnings.Add("[rules] 配置了 endConditions 但未启用 victory 子系统（使用内核回退）");
+            result.Errors.Add("[rules] 存在移动行动但未启用 movement 能力");
+        if (def.Moves.Values.Any(m => m.NeedsCard) && !host.AllVariants.Any(v => v.Info.Provides.Contains("cards")))
+            result.Errors.Add("[rules] 存在出牌行动 (needsCard) 但未启用 cards 能力");
     }
 
     private static void ValidateExpressions(GameDefinition def, ModuleHost host, PackageResult result, NameContract contract)
@@ -289,8 +318,8 @@ public static class PackageLoader
         {
             check($"{where}.when", e.When);
             // e.Value is only an expression for these effects; setside stores a keyword ("front"/"back").
-            if (e.Effect is "setattr" or "setvar" or "addvar" or "control"
-                or "capture" or "steploss" or "damage" or "exit")
+            if (e.Effect is "setattr" or "setvar" or "addvar" or "control" or "capture"
+                or "steploss" or "damage" or "exit")
                 check($"{where}.value", e.Value);
             check($"{where}.x", e.X);
             check($"{where}.y", e.Y);

@@ -4,7 +4,8 @@
   "variants": {
     "map": "hexGrid",
     "counter": "generic",
-    "control": "off",
+    "zoc": "off",
+    "territory": "off",
     "supply": "off",
     "scenario": "generic",
     "movement": "movePoints",

@@ -6,7 +6,6 @@
   "rules": {
     "map":      { "variant": "hexGrid",    "file": "map.json" },
     "counter":  { "variant": "generic",    "file": "units.json" },
-    "control":  { "variant": "off" },
     "supply":   { "variant": "traceLine", "config": {
       "sources": { "0": [ "0,0" ], "1": [ "5,3" ] },
       "blockedByEnemyUnit": true

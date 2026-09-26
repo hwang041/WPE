@@ -7,6 +7,7 @@
   "rules": {
     "map":      { "variant": "pointToPoint", "file": "spacemap.json" },
     "counter":  { "variant": "generic",      "file": "units.json" },
+    "territory":{ "variant": "controlPoints", "config": { "initialFromUnits": false } },
     "scenario": { "variant": "generic",      "file": "scenario.json" },
     "movement": { "variant": "roadNetwork" },
     "combat":   { "variant": "crTable",      "file": "combat.json" },

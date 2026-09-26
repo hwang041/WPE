@@ -6,7 +6,7 @@
   "description": "战力比 CRT：战力比行 × 骰子列 → 结果码",
   "configFile": "combat.json",
   "requires": ["dice"],
-  "provides": ["combatResolution"],
+  "provides": ["combat", "combatResolution"],
   "configSchema": {
     "<combatId>": {
       "rowExpr": "计算行(战力比)的表达式，如 effStr(counter)/effStr(target)",

@@ -1,28 +1,28 @@
 using Wpe.Core.Definition;
-using Wpe.Core.Engine;
 using Wpe.Core.Modules;
 
 namespace Wpe.Rules.Victory;
 
 /// <summary>
-/// victory / vpAndSudden — victory point goals plus sudden-death end conditions,
-/// both declared in game.json `endConditions`. Provides the vpHeld() function
-/// (count of victory hexes currently occupied by a player's units).
+/// victory / vpAndSudden — contributes the `vpHeld(player)` function (count of victory
+/// hexes currently occupied by a player's units). End conditions themselves are evaluated
+/// by the engine's core `endConditions` loop, so several victory rules can be selected at
+/// the same time.
 /// </summary>
-public sealed class VpAndSudden : RuleVariantBase, IVictoryModule
+public sealed class VpAndSudden : RuleVariantBase
 {
     public override VariantInfo Info => new()
     {
         Subsystem = "victory",
         Id = "vpAndSudden",
-        Description = "胜利点 + 突然死亡，endConditions 全部满足即终局",
-        Provides = new[] { "endConditions", "vpHeld" },
+        Description = "胜利点：vpHeld(玩家) = 占据的胜利格数",
+        Requires = new[] { "map" },
+        Provides = new[] { "vpHeld" },
         Status = "stable"
     };
 
     public override void Register(ModuleHost host)
     {
-        host.Victory = this;
         host.AddFunctionAliases((ctx, a) =>
         {
             var p = (int)ExprArgs.Number(a, 0);
@@ -36,21 +36,5 @@ public sealed class VpAndSudden : RuleVariantBase, IVictoryModule
     {
         if (def.EndConditions.Count == 0)
             issues.Add("[victory] 未配置 endConditions，游戏将无法正常结束");
-    }
-
-    public void Check(GameEngine engine)
-    {
-        foreach (var end in engine.Def.EndConditions)
-        {
-            var ctx = engine.MakeContext(null, null, null);
-            if (engine.Compile(end.When).EvalBool(ctx))
-            {
-                engine.State.GameOver = true;
-                engine.State.ResultMessage = end.Message;
-                var winner = end.Winner is int w && w >= 0 ? w : engine.State.ActivePlayer;
-                engine.State.LogMessage($"游戏结束: {end.Message} (玩家{winner + 1})");
-                return;
-            }
-        }
     }
 }

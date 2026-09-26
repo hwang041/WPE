@@ -28,6 +28,9 @@ public sealed class GridMap : IMap
 
     public string CellKey(HexCoord c) => $"{c.Q},{c.R}";
 
+    // Hex grids carry no per-cell starting controller; ownership starts empty.
+    public IEnumerable<(string Key, string Controller)> InitialControllers() => Array.Empty<(string, string)>();
+
     /// <summary>Per-hex terrain codes, one string per row (each of length == Columns).</summary>
     public string[] Terrain { get; set; } = Array.Empty<string>();
 

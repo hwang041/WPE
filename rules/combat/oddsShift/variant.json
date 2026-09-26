@@ -6,7 +6,7 @@
   "description": "战力比 + 列移位 CRT：骰值加修正列后再查表",
   "configFile": "combat.json",
   "requires": ["dice"],
-  "provides": ["combatResolution", "combatShifts"],
+  "provides": ["combat", "combatResolution", "combatShifts"],
   "configSchema": {
     "<combatId>": {
       "rowExpr": "战力比表达式，如 effStr(counter)/effStr(target)",

@@ -6,7 +6,7 @@
   "rules": {
     "map":      { "variant": "hexGrid",    "file": "map.json" },
     "counter":  { "variant": "generic",    "file": "units.json" },
-    "control":  { "variant": "zoc", "config": { "stopOnEnter": true, "exitCost": 1 } },
+    "zoc":      { "variant": "zoc", "config": { "stopOnEnter": true, "exitCost": 1 } },
     "movement": { "variant": "zoc",        "file": "movement.json" },
     "combat":   { "variant": "crTable",    "file": "combat.json" },
     "scenario": { "variant": "generic",    "file": "scenario.json" }

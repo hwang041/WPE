@@ -21,7 +21,7 @@ public sealed class OddsShift : RuleVariantBase, ICombatModule
         Id = "oddsShift",
         Description = "战力比 + 列移位 CRT：骰值加修正列后再查表",
         Requires = new[] { "dice" },
-        Provides = new[] { "combatResolution", "combatShifts" },
+        Provides = new[] { "combat", "combatResolution", "combatShifts" },
         Status = "stable"
     };
 

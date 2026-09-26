@@ -6,7 +6,7 @@
   "description": "多步算子：steps/maxSteps 派生战力，steploss 削减（半力翻面、归零歼灭）",
   "configFile": "units.json",
   "requires": [],
-  "provides": ["roster", "effStr", "steploss"],
+  "provides": ["counter", "roster", "effStr", "steploss"],
   "configSchema": {
     "<算子键>": {
       "name": "显示名",

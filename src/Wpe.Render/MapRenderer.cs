@@ -16,7 +16,7 @@ public static class MapRenderer
         bool showHexNumbers = true, int targetWidth = 1600,
         IReadOnlyDictionary<string, FactionDef>? factions = null,
         IReadOnlyDictionary<string, NodeTypeDef>? nodeTypes = null,
-        IReadOnlyDictionary<string, string>? control = null)
+        IReadOnlyDictionary<string, string>? territory = null)
     {
         var area = map.TotalArea;
         float scale = Math.Clamp(targetWidth / area.Width, 0.02f, 2f);
@@ -46,7 +46,7 @@ public static class MapRenderer
         }
         else if (map is SpaceMap space)
         {
-            SpaceMapPainter.Draw(canvas, space, counters, control, factions, nodeTypes);
+            SpaceMapPainter.Draw(canvas, space, counters, territory, factions, nodeTypes);
             if (counters != null)
                 SpaceMapPainter.DrawCounters(canvas, space, counters, space.NodeRadius * 1.15f);
         }

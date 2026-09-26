@@ -6,13 +6,13 @@
   "description": "补给线：从单位沿相邻格追溯至本方补给源，敌单位/敌 ZOC/地形可阻断",
   "configFile": "game.json",
   "requires": ["map", "counter"],
-  "provides": ["supply", "inSupply", "traceLine"],
+  "provides": ["supply", "inSupply", "outOfSupply", "supplyDistance", "isSupplySource"],
   "configSchema": {
     "sources": "{owner: [\"q,r\", ...]} 各方补给源格",
     "range": "int 最大追溯格数（0=不限）",
     "costBudget": "number 最大移动费预算（0=忽略费用）",
     "blockedByEnemyUnit": "bool 敌单位阻断（默认 true）",
-    "blockedByEnemyZoc": "bool 敌 ZOC 阻断（默认 false）",
+    "blockedByEnemyZoc": "bool 敌 ZOC 阻断（默认 false；仅当所选 zoc 规则存在时生效，zoc=off 时忽略）",
     "allowedTerrain": "[地形字母] 只允许经过这些地形（空=全部）"
   }
 }

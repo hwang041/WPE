@@ -1,0 +1,9 @@
+{
+  "subsystem": "territory",
+  "id": "off",
+  "version": "1.0.0",
+  "status": "stable",
+  "description": "关闭领地归属：不记录控制权（中性函数）",
+  "requires": [],
+  "provides": ["territory"]
+}

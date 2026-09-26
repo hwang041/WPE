@@ -6,7 +6,7 @@
   "description": "损伤轨算子：damage 累积，战力/移动按损伤衰减",
   "configFile": "units.json",
   "requires": [],
-  "provides": ["roster", "effStr", "effMove", "damage"],
+  "provides": ["counter", "roster", "effStr", "effMove", "damage"],
   "configSchema": {
     "<算子键>": {
       "name": "显示名",

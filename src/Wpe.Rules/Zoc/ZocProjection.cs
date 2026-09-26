@@ -4,15 +4,15 @@ using Wpe.Core.Engine;
 using Wpe.Core.Model;
 using Wpe.Core.Modules;
 
-namespace Wpe.Rules.Control;
+namespace Wpe.Rules.Zoc;
 
 /// <summary>
-/// control / zoc — zones of control. A counter projects control into every adjacent cell;
-/// entering an enemy-controlled cell stops movement (and may cost extra to leave). The
-/// projection can be limited by unit type, blocked across rivers, and blocked in certain
-/// terrain. Movement variants query this through <see cref="IControlModule"/>.
+/// zoc / zoc — zones of control, and nothing else. A counter projects control into every
+/// adjacent cell; entering an enemy-controlled cell stops movement (and may cost extra to
+/// leave). Projection can be limited by unit type, blocked across rivers, and blocked in
+/// certain terrain. Movement variants query this through <see cref="IZocModule"/>.
 /// </summary>
-public sealed class Zoc : RuleVariantBase, IControlModule
+public sealed class ZocProjection : RuleVariantBase, IZocModule
 {
     private readonly HashSet<string> _projectTypes = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _noProjectTerrain = new(StringComparer.OrdinalIgnoreCase);
@@ -22,18 +22,13 @@ public sealed class Zoc : RuleVariantBase, IControlModule
 
     public override VariantInfo Info => new()
     {
-        Subsystem = "control",
+        Subsystem = "zoc",
         Id = "zoc",
         Description = "控制区：相邻格投影 ZOC，进入敌 ZOC 必停/离开加费",
         Requires = new[] { "map", "counter" },
         Provides = new[] { "zoc", "inZoc", "zocOwner" },
         Status = "stable"
     };
-
-    // ---- IControlModule ----
-
-    public bool StopsMovementOnEnter => _stopOnEnter;
-    public float ZocExitCost => _exitCost;
 
     public override void Load(string? configJson, GameDefinition def)
     {
@@ -56,7 +51,7 @@ public sealed class Zoc : RuleVariantBase, IControlModule
 
     public override void Register(ModuleHost host)
     {
-        host.Control = this;
+        host.Zoc = this;
         host.AddFunctionAliases((ctx, a) => IsEnemyZoc(ctx.State, ExprArgs.Cell(a, ctx, 0), ctx.State.ActivePlayer),
             "inZoc", "in_zoc");
         host.AddFunctionAliases((ctx, a) => (double)ZocProjectorOwner(ctx.State, ExprArgs.Cell(a, ctx, 0)),
@@ -67,6 +62,11 @@ public sealed class Zoc : RuleVariantBase, IControlModule
             return c != null && IsEnemyZoc(ctx.State, c.Hex, c.AttributeInt(ContractNames.Owner, -1));
         }, "zocProjected", "zoc_projected");
     }
+
+    // ---- IZocModule ----
+
+    public bool StopsMovementOnEnter => _stopOnEnter;
+    public float ZocExitCost => _exitCost;
 
     public int ZocProjectorOwner(GameState state, HexCoord hex)
     {

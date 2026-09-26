@@ -13,7 +13,7 @@ public sealed class OffSupply : RuleVariantBase
         Subsystem = "supply",
         Id = "off",
         Description = "关闭补给子系统：所有单位始终在补给中",
-        Provides = Array.Empty<string>(),
+        Provides = new[] { "supply" },
         Status = "stable"
     };
 

@@ -28,7 +28,7 @@ public static class SpaceMapPainter
     }
 
     public static void Draw(SKCanvas canvas, SpaceMap map, IReadOnlyList<CounterState>? counters = null,
-        IReadOnlyDictionary<string, string>? control = null,
+        IReadOnlyDictionary<string, string>? territory = null,
         IReadOnlyDictionary<string, FactionDef>? factions = null,
         IReadOnlyDictionary<string, NodeTypeDef>? nodeTypes = null,
         bool showNames = true)
@@ -55,7 +55,7 @@ public static class SpaceMapPainter
 
         DrawLines(canvas, map);
         DrawRoads(canvas, map);
-        DrawNodes(canvas, map, counters, control, factions, nodeTypes, typeface, showNames);
+        DrawNodes(canvas, map, counters, territory, factions, nodeTypes, typeface, showNames);
     }
 
     private static void DrawLines(SKCanvas canvas, SpaceMap map)
@@ -114,7 +114,7 @@ public static class SpaceMapPainter
     }
 
     private static void DrawNodes(SKCanvas canvas, SpaceMap map, IReadOnlyList<CounterState>? counters,
-        IReadOnlyDictionary<string, string>? control, IReadOnlyDictionary<string, FactionDef>? factions,
+        IReadOnlyDictionary<string, string>? territory, IReadOnlyDictionary<string, FactionDef>? factions,
         IReadOnlyDictionary<string, NodeTypeDef>? nodeTypes, SKTypeface typeface, bool showNames)
     {
         float R = map.NodeRadius;
@@ -133,7 +133,7 @@ public static class SpaceMapPainter
             var def = n.AttrInt("defense", 0);
             float nr = R * (style.Scale > 0 ? style.Scale : 1f);
             var center = new SKPoint(n.X, n.Y);
-            var fill = NodeColor(map, cell, counters, control, factions);
+            var fill = NodeColor(map, cell, counters, territory, factions);
 
             using (var shadow = new SKPaint { Style = SKPaintStyle.Fill, Color = new SKColor(0, 0, 0, 90) })
                 canvas.DrawCircle(center.X + 2, center.Y + 3, nr, shadow);
@@ -233,7 +233,7 @@ public static class SpaceMapPainter
 
     /// <summary>Colour of a node: a unit on it wins (its resolved `color` / faction palette), else the persistent controller's palette colour, else neutral.</summary>
     private static SKColor NodeColor(SpaceMap map, HexCoord cell, IReadOnlyList<CounterState>? counters,
-        IReadOnlyDictionary<string, string>? control, IReadOnlyDictionary<string, FactionDef>? factions)
+        IReadOnlyDictionary<string, string>? territory, IReadOnlyDictionary<string, FactionDef>? factions)
     {
         if (counters != null)
             foreach (var c in counters)
@@ -247,7 +247,7 @@ public static class SpaceMapPainter
                 }
 
         var id = map.NodeIdOf(cell);
-        if (control != null && control.TryGetValue(id, out var f) && factions != null && factions.TryGetValue(f, out var fd))
+        if (territory != null && territory.TryGetValue(id, out var f) && factions != null && factions.TryGetValue(f, out var fd))
             return ParseColor(fd.Color, Neutral);
         return Neutral;
     }

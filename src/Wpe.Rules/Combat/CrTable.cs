@@ -21,7 +21,7 @@ public sealed class CrTable : RuleVariantBase, ICombatModule
         Id = "crTable",
         Description = "战力比 CRT：战力比行 × 骰子列 → 结果码",
         Requires = new[] { "dice" },
-        Provides = new[] { "combatResolution" },
+        Provides = new[] { "combat", "combatResolution" },
         Status = "stable"
     };
 

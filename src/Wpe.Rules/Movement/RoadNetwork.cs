@@ -19,7 +19,7 @@ public sealed class RoadNetwork : RuleVariantBase, IMovementModule
         Description = "点对点道路移动：逐段走，每段 1 点，禁入敌占节点",
         Requires = new[] { "map" },
         RequiresVariants = new[] { "map:pointToPoint" },
-        Provides = new[] { "roadReachability" },
+        Provides = new[] { "movement", "roadReachability" },
         Status = "stable"
     };
 

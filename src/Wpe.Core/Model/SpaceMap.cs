@@ -187,6 +187,16 @@ public sealed class SpaceMap : IMap
 
     public string CellKey(HexCoord c) => NodeIdOf(c);
 
+    /// <summary>Each node's declared starting faction (map data, consumed by `territory`).</summary>
+    public IEnumerable<(string Key, string Controller)> InitialControllers()
+    {
+        foreach (var n in Nodes)
+        {
+            var f = n.AttrStr("faction", "");
+            if (!string.IsNullOrEmpty(f)) yield return (n.Id, f);
+        }
+    }
+
     public static SpaceMap Parse(string json)
     {
         var spec = JsonSerializer.Deserialize<SpaceMap>(json, JsonOpts)

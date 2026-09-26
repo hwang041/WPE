@@ -47,7 +47,7 @@ public sealed class BoardRenderer
         if (map is GridMap grid)
             GridMapPainter.DrawGrid(canvas, grid, ShowHexNumbers, 1f / Scale, 1f / Scale);
         else if (map is SpaceMap space)
-            SpaceMapPainter.Draw(canvas, space, _state.CountersOnBoard().ToList(), _state.Control,
+            SpaceMapPainter.Draw(canvas, space, _state.CountersOnBoard().ToList(), _state.Territory,
                 _state.Def.Factions, _state.Def.NodeTypes);
         DrawCounters(canvas);
 

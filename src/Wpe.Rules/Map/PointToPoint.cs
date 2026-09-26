@@ -8,8 +8,10 @@ namespace Wpe.Rules.Map;
 
 /// <summary>
 /// map / pointToPoint — a data-driven node network (spacemap.json): named nodes joined
-/// by roads. Provides the node-oriented expressions (`nodetype`, `controllednodes`,
-/// `occupiedby`) and the `control` effect that persists node ownership in Control.
+/// by roads. Provides map data plus node-oriented expressions (`nodetype`,
+/// `controllednodes`, `occupiedby`). Node ownership is *territory*, not ZOC: the
+/// `control` effect is provided by the territory capability, and initial node factions
+/// are exposed as raw map data (IMap.InitialControllers) for territory to seed.
 /// </summary>
 public sealed class PointToPoint : RuleVariantBase
 {
@@ -20,7 +22,7 @@ public sealed class PointToPoint : RuleVariantBase
         Subsystem = "map",
         Id = "pointToPoint",
         Description = "数据驱动点对点地图（城镇节点 + 道路），节点城防/势力",
-        Provides = new[] { "nodes", "roads", "nodetype", "controllednodes", "occupiedby", "terrainDefense" },
+        Provides = new[] { "map", "nodes", "roads", "nodetype", "controllednodes", "occupiedby", "terrainDefense" },
         Status = "stable"
     };
 
@@ -39,20 +41,11 @@ public sealed class PointToPoint : RuleVariantBase
         host.AddFunctionAliases((ctx, a) => (double)Map(ctx).TerrainDefenseAt(ExprArgs.Cell(a, ctx, 0)), "terrainDefense", "terrain_defense");
         host.AddFunctionAliases((ctx, a) => (double)CountControlled(ctx, a), "controllednodes", "nodesheld");
         host.AddFunctionAliases((ctx, a) => OccupiedBy(ctx, a), "occupiedby", "occupied_by");
-
-        host.AddEffect("control", ControlEffect);
     }
 
-    public override void Apply(GameState state, GameEngine? engine)
-    {
-        if (_map == null) return;
-        // initial territory declared on each node
-        foreach (var n in _map.Nodes)
-        {
-            var f = n.AttrStr("faction", "");
-            if (!string.IsNullOrEmpty(f)) state.Control[n.Id] = f;
-        }
-    }
+    // Map data only — initial node factions are exposed via IMap.InitialControllers()
+    // and seeded into the territory map by the `territory` capability.
+    public override void Apply(GameState state, GameEngine? engine) { }
 
     public override void Validate(GameDefinition def, List<string> issues)
     {
@@ -72,7 +65,7 @@ public sealed class PointToPoint : RuleVariantBase
     private static int CountControlled(RuleContext ctx, object?[] a)
     {
         var f = a.Length > 0 ? a[0]?.ToString() ?? "" : "";
-        return ctx.State.Control.Count(kv => kv.Value == f);
+        return ctx.State.Territory.Count(kv => kv.Value == f);
     }
 
     private static bool OccupiedBy(RuleContext ctx, object?[] a)
@@ -82,16 +75,5 @@ public sealed class PointToPoint : RuleVariantBase
         var cell = ExprArgs.Cell(a, ctx, 0);
         return ctx.State.CountersOnBoard().Any(c =>
             c.AttributeInt(ContractNames.Owner, -1) == owner && c.Hex == cell);
-    }
-
-    private static void ControlEffect(RuleContext ctx, EffectDef e)
-    {
-        if (ctx.State.Map is not SpaceMap sm) return;
-        var c = e.Counter == "target" ? ctx.TargetCounter : ctx.Counter;
-        var cell = c?.Hex ?? ctx.TargetPos;
-        if (cell == null) return;
-        var id = sm.NodeIdOf(cell.Value);
-        if (string.IsNullOrEmpty(id)) return;
-        ctx.State.Control[id] = ctx.Engine.Compile(e.Value).EvalString(ctx);
     }
 }

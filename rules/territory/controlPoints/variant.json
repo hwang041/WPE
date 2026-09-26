@@ -1,0 +1,14 @@
+{
+  "subsystem": "territory",
+  "id": "controlPoints",
+  "version": "1.0.0",
+  "status": "stable",
+  "description": "领地归属：按格记录控制权 + control/capture 效果",
+  "configFile": "game.json",
+  "requires": ["map", "counter", "scenario"],
+  "provides": ["territory", "control", "capture", "hexControl", "controlledBy", "controlledCount"],
+  "configSchema": {
+    "initialFromMap": "bool 按地图声明的初始控制者填充（如点对点节点势力，默认 true；已有部署覆盖优先）",
+    "initialFromUnits": "bool 部署后按单位位置初始化控制权（默认 false）"
+  }
+}

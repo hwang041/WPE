@@ -17,7 +17,7 @@ public sealed class Phases : RuleVariantBase, ITurnModule
         Subsystem = "turn",
         Id = "phases",
         Description = "IGO-UGO 阶段回合：回合重置按 game.json turnReset",
-        Provides = new[] { "turnReset" },
+        Provides = new[] { "turn", "turnReset" },
         Status = "stable"
     };
 

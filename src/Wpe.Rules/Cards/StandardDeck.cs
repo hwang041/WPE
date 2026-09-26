@@ -25,7 +25,7 @@ public sealed class StandardDeck : RuleVariantBase
         Subsystem = "cards",
         Id = "standard",
         Description = "通用卡牌框架：cards.json 牌定义+牌库，抽/补/洗/弃 + 手牌上限",
-        Provides = new[] { "draw", "replenish", "shuffle", "discard", "handsize", "handlimit", "cardZones" },
+        Provides = new[] { "cards", "draw", "replenish", "shuffle", "discard", "handsize", "handlimit", "cardZones" },
         Status = "stable"
     };
 

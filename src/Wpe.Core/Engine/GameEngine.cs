@@ -352,6 +352,7 @@ public sealed class GameEngine
 
     private void SeedCoreEffects()
     {
+        Host.BeginRule(""); // core owns these contributions
         Host.AddEffect("move", MoveEffect);
         Host.AddEffect("movecounter", MoveEffect);
         Host.AddEffect("flip", (ctx, e) =>
@@ -591,11 +592,6 @@ public sealed class GameEngine
 
     private void CheckEndConditions()
     {
-        if (Host.Victory != null)
-        {
-            Host.Victory.Check(this);
-            return;
-        }
         foreach (var end in Def.EndConditions)
         {
             var ctx = MakeContext(null, null, null);

@@ -1,5 +1,5 @@
 {
-  "subsystem": "control",
+  "subsystem": "zoc",
   "id": "zoc",
   "version": "1.0.0",
   "status": "stable",

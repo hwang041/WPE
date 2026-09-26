@@ -25,8 +25,10 @@ public sealed class GameState
     /// <summary>Game-defined variables (victory points, flag markers, ...).</summary>
     public Dictionary<string, object> Vars { get; } = new();
 
-    /// <summary>Persistent control map: key -> controlling faction/owner (e.g. a point-to-point node id).</summary>
-    public Dictionary<string, string> Control { get; } = new();
+    /// <summary>Persistent territory map: cell key -> controlling faction/owner (see
+    /// <see cref="IMap.CellKey"/>). Populated by the `territory` capability, read by
+    /// victory/scenario rules.</summary>
+    public Dictionary<string, string> Territory { get; } = new();
 
     public List<string> Log { get; } = new();
     public List<DieResult> LastDice { get; } = new();
@@ -58,7 +60,7 @@ public sealed class GameState
             ResultMessage = ResultMessage
         };
         foreach (var (k, v) in Vars) c.Vars[k] = v;
-        foreach (var (k, v) in Control) c.Control[k] = v;
+        foreach (var (k, v) in Territory) c.Territory[k] = v;
         c.Log.AddRange(Log);
         c.LastDice.AddRange(LastDice);
         foreach (var card in Cards)

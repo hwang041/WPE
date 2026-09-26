@@ -49,4 +49,11 @@ public interface IMap
     /// (e.g. control/ownership). Hex grids use "q,r"; point-to-point maps use the node id.
     /// </summary>
     string CellKey(HexCoord cell);
+
+    /// <summary>
+    /// Initial (key, controller) pairs declared by the map data itself (e.g. a
+    /// point-to-point node's starting faction). This is map DATA, not ownership logic —
+    /// the `territory` capability consumes it to seed the territory map.
+    /// </summary>
+    IEnumerable<(string Key, string Controller)> InitialControllers();
 }

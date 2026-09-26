@@ -17,7 +17,7 @@ public sealed class DamageTrack : RosterCounterBase, ICounterModule
         Subsystem = "counter",
         Id = "damageTrack",
         Description = "损伤轨算子：damage 累积，战力/移动按损伤衰减",
-        Provides = new[] { "roster", "effStr", "effMove", "damage" },
+        Provides = new[] { "counter", "roster", "effStr", "effMove", "damage" },
         Status = "stable"
     };
 

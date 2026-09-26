@@ -5,5 +5,5 @@
   "status": "stable",
   "description": "关闭补给子系统：所有单位始终在补给中",
   "requires": [],
-  "provides": []
+  "provides": ["supply"]
 }

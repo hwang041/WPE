@@ -1,5 +1,5 @@
 {
-  "subsystem": "control",
+  "subsystem": "zoc",
   "id": "zoc",
   "fields": {
     "projectTypes": { "type": "string[]", "default": [], "desc": "只由这些兵种投影 ZOC（空=全部）" },

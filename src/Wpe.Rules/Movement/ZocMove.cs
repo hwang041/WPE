@@ -22,9 +22,9 @@ public sealed class ZocMove : RuleVariantBase, IMovementModule
         Subsystem = "movement",
         Id = "zoc",
         Description = "ZOC 移动：行动点移动 + 进入敌控制区必停/离开加费",
-        Requires = new[] { "map", "counter", "control" },
+        Requires = new[] { "map", "counter", "zoc" },
         RequiresVariants = new[] { "map:hexGrid" },
-        Provides = new[] { "reachability", "moveCost", "riverCost", "zocReachability" },
+        Provides = new[] { "movement", "reachability", "moveCost", "riverCost", "zocReachability" },
         Status = "stable"
     };
 
@@ -74,7 +74,7 @@ public sealed class ZocMove : RuleVariantBase, IMovementModule
         var gm = engine.State.Map as GridMap;
         if (gm == null || !unit.OnBoard) return result;
 
-        var control = engine.Host.Control;
+        var zoc = engine.Host.Zoc;
         var owner = unit.AttributeInt(ContractNames.Owner, -1);
         var moveLeft = unit.AttributeFloat(ContractNames.MoveLeft);
         var visited = new Dictionary<HexCoord, float> { [unit.Hex] = 0f };
@@ -85,14 +85,14 @@ public sealed class ZocMove : RuleVariantBase, IMovementModule
         {
             var cur = queue.Dequeue();
             var curCost = visited[cur];
-            bool curInZoc = control != null && control.IsEnemyZoc(engine.State, cur, owner);
+            bool curInZoc = zoc != null && zoc.IsEnemyZoc(engine.State, cur, owner);
             // entering an enemy ZOC ends movement — do not expand further from it
-            if (curInZoc && control!.StopsMovementOnEnter) continue;
+            if (curInZoc && zoc!.StopsMovementOnEnter) continue;
 
             foreach (var n in HexMath.Neighbors(cur, gm.PointyTop))
             {
                 if (!gm.InBounds(n)) continue;
-                var step = StepCost(engine.State, cur, n) + (curInZoc ? control?.ZocExitCost ?? 0 : 0);
+                var step = StepCost(engine.State, cur, n) + (curInZoc ? zoc?.ZocExitCost ?? 0 : 0);
                 var cost = curCost + step;
                 if (cost > moveLeft) continue;
                 bool occupied = engine.State.CountersOnBoard()

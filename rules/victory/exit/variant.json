@@ -3,10 +3,10 @@
   "id": "exit",
   "version": "1.0.0",
   "status": "stable",
-  "description": "退场胜利：exit 效果离场并计数，exitedStrength 统计",
+  "description": "退场：exit 效果离场并计数，exitedStrength 统计（终局条件由内核 endConditions 判定）",
   "configFile": "game.json",
   "requires": [],
-  "provides": ["endConditions", "exit", "exitedStrength"],
+  "provides": ["exit", "exitedStrength"],
   "configSchema": {
     "endConditions": "[{when,message,winner?}] 使用 exitedStrength(玩家) 判定退场战力"
   }

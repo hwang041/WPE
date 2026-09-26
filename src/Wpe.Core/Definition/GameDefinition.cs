@@ -1,4 +1,73 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
 namespace Wpe.Core.Definition;
+
+/// <summary>A resolved rule instance: which variant to load and where its config lives.</summary>
+public sealed class RuleSelection
+{
+    /// <summary>Category (the key under `rules` in game.json / the family preset).</summary>
+    public string Category { get; init; } = "";
+    public string Variant { get; init; } = "";
+    public string? File { get; init; }
+    public Dictionary<string, object?>? Config { get; init; }
+}
+
+/// <summary>
+/// Reads `game.json` `rules`, where each category value is either a single selection
+/// object (backward compatible) or an array of them (several orthogonal rules in one
+/// category, e.g. two victory rules).
+/// </summary>
+public sealed class RuleSetConverter : JsonConverter<Dictionary<string, List<VariantSelection>>>
+{
+    public override Dictionary<string, List<VariantSelection>> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType != JsonTokenType.StartObject)
+            throw new JsonException("[game.json] rules 必须是对象");
+        var result = new Dictionary<string, List<VariantSelection>>();
+        using var doc = JsonDocument.ParseValue(ref reader);
+        foreach (var prop in doc.RootElement.EnumerateObject())
+        {
+            var list = new List<VariantSelection>();
+            switch (prop.Value.ValueKind)
+            {
+                case JsonValueKind.Array:
+                    foreach (var el in prop.Value.EnumerateArray())
+                    {
+                        var v = el.Deserialize<VariantSelection>(options);
+                        if (v != null) list.Add(v);
+                    }
+                    break;
+                case JsonValueKind.Object:
+                    var single = prop.Value.Deserialize<VariantSelection>(options);
+                    if (single != null) list.Add(single);
+                    break;
+            }
+            result[prop.Name] = list;
+        }
+        return result;
+    }
+
+    public override void Write(Utf8JsonWriter writer, Dictionary<string, List<VariantSelection>> value, JsonSerializerOptions options)
+    {
+        writer.WriteStartObject();
+        foreach (var (category, list) in value)
+        {
+            writer.WritePropertyName(category);
+            if (list.Count == 1)
+            {
+                JsonSerializer.Serialize(writer, list[0], options);
+            }
+            else
+            {
+                writer.WriteStartArray();
+                foreach (var v in list) JsonSerializer.Serialize(writer, v, options);
+                writer.WriteEndArray();
+            }
+        }
+        writer.WriteEndObject();
+    }
+}
 
 /// <summary>
 /// A game's complete rule definition, deserialized from game.json (the "main rules"
@@ -16,8 +85,10 @@ public sealed class GameDefinition
     /// <summary>Family preset that supplies default variant choices (e.g. "default").</summary>
     public string Family { get; set; } = "default";
 
-    /// <summary>Per-subsystem variant selection + config file pointers (overrides the family).</summary>
-    public Dictionary<string, VariantSelection> Rules { get; set; } = new();
+    /// <summary>Per-category rule selection + config file pointers (overrides the family).
+    /// Each value may be a single selection or an array of orthogonal rules.</summary>
+    [JsonConverter(typeof(RuleSetConverter))]
+    public Dictionary<string, List<VariantSelection>> Rules { get; set; } = new();
 
     /// <summary>Cycle of phases that repeat for each player's turn.</summary>
     public List<string> PhaseOrder { get; set; } = new();

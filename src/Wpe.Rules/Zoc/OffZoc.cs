@@ -1,20 +1,19 @@
 using Wpe.Core.Modules;
 
-namespace Wpe.Rules.Control;
+namespace Wpe.Rules.Zoc;
 
 /// <summary>
-/// control / off — neutral control subsystem: no zones of control, no ownership tracking.
-/// Registers the neutral query functions so games can reference them safely even when the
-/// subsystem is disabled.
+/// zoc / off — no zones of control. Registers neutral query functions so games can
+/// reference them safely even when ZOC is disabled.
 /// </summary>
-public sealed class OffControl : RuleVariantBase
+public sealed class OffZoc : RuleVariantBase
 {
     public override VariantInfo Info => new()
     {
-        Subsystem = "control",
+        Subsystem = "zoc",
         Id = "off",
-        Description = "关闭控制子系统：无 ZOC、无归属跟踪（中性函数）",
-        Provides = Array.Empty<string>(),
+        Description = "关闭控制区：无 ZOC（中性函数）",
+        Provides = new[] { "zoc" },
         Status = "stable"
     };
 

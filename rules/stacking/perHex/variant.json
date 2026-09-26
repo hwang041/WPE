@@ -5,7 +5,7 @@
   "status": "stable",
   "description": "每格堆叠上限：maxPerHex 个算子/格",
   "requires": [],
-  "provides": ["stackcount", "stacklimit"],
+  "provides": ["stacking", "stackcount", "stacklimit"],
   "configSchema": {
     "maxPerHex": "int 每格最多算子数（>=1）"
   }

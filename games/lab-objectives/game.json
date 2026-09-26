@@ -6,7 +6,7 @@
   "rules": {
     "map":      { "variant": "hexGrid",     "file": "map.json" },
     "counter":  { "variant": "generic",     "file": "units.json" },
-    "control":  { "variant": "controlPoints", "config": { "initialFromUnits": true } },
+    "territory": { "variant": "controlPoints", "config": { "initialFromUnits": true } },
     "movement": { "variant": "movePoints",  "file": "movement.json" },
     "combat":   { "variant": "crTable",     "file": "combat.json" },
     "scenario": { "variant": "generic",     "file": "scenario.json" },

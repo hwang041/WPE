@@ -61,11 +61,11 @@ games/<名字>/
   cards.json     卡牌：牌定义 + 牌库 + handLimit         ← cards/standard 变体读
 ```
 
-## 可配置的规则（子系统 × 变体）
+## 可配置的规则（正交能力 × 变体）
 
-所有玩法都是"选变体 + 填表"，组合即游戏；渲染层不含任何游戏专有代码（势力配色/节点样式都来自 `game.json` 数据）。
+所有玩法都是"选一组规则 + 填表"，组合即游戏。规则按**能力**组合：独占能力（map/combat/zoc/territory…）最多选一个，函数/效果贡献可叠加，分类（目录名）只作分组、不互斥。因此 `zoc`（控制区）与 `territory`（归属）可同用，`objectives` + `attrition` 也可同用。渲染层不含任何游戏专有代码。
 
-| 子系统 | 变体 | 配置文件 | 提供的能力 |
+| 分类 | 变体 | 配置文件 | 提供的能力 |
 |---|---|---|---|
 | map | `hexGrid` | `map.json` | 六角格地形/河流/胜利点 |
 | map | `pointToPoint` | `spacemap.json` | 城镇节点 + 道路；节点城防/势力 |
@@ -81,13 +81,14 @@ games/<名字>/
 | victory | `objectives` / `exit` / `attrition` | `game.json` `endConditions` | 目标点 / 退场 / 战损 |
 | counter | `generic` | `units.json` | 算子目录（正背两态） |
 | counter | `stepped` / `damageTrack` | `units.json` | 多步 / 损伤轨算子模型 |
-| control | `off` / `zoc` / `controlPoints` | `game.json` `rules.control.config` | 控制区 / 按格归属 + `control` 效果 |
+| zoc | `off` / `zoc` | `game.json` `rules.zoc.config` | 控制区投影（进入敌 ZOC 必停/离开加费） |
+| territory | `off` / `controlPoints` | `game.json` `rules.territory.config` | 格子/节点归属 + `control`/`capture` 效果 |
 | supply | `off` / `traceLine` | `game.json` `rules.supply.config` | 补给线追溯（`inSupply`） |
 | scenario | `generic` | `scenario.json` | 部署 / 援军 / 按节点部署 |
 | cards | `standard` | `cards.json` | 牌库/手牌/抽洗弃/手牌上限/事件牌 |
 | stacking | `unlimited` / `perHex` | `game.json` `rules.stacking.config` | 每格堆叠上限 |
 
-> `family: "default"` 自动装配常用子系统；只需在 `rules` 里**覆盖**想换的子系统即可。表达式函数、效果原语、算法接口都由变体注册——换变体时只要提供的函数名一致，规则无需改动。
+> `family: "default"` 自动装配常用能力；只需在 `rules` 里**覆盖**想换的分类即可（值可为对象或数组；数组用于同分类多条规则，如两套胜利规则）。表达式函数、效果、独占接口都由规则注册——换规则时只要提供的函数名一致，其余规则无需改动。
 
 ## 配置 Demo：六角格 + 卡驱（零胶水）
 
@@ -129,13 +130,13 @@ games/<名字>/
 ## 中台（引擎）怎么读懂这些表
 
 1. 平台从 `rules/**/variant.json` 读规则库（`RuleCatalog`），并反射发现代码里的变体实现（`VariantRegistry`），二者 **1:1 对账**。
-2. `game.json` 声明用哪些**规则变体**（`family` 选家族预设，可在 `rules` 里覆盖任意一个）→ 实例化变体 → 注册表达式函数/效果原语/算法接口。
-3. 校验：表结构、表达式语法与函数、表达式里的**名字契约**（未知即告警）、变体依赖组合、剧本边界——全部在**加载时**拦下。
-4. 固定管线跑规则：`校验 → 掷骰 → 结算(CRT) → 效果 → 触发 → 胜利`。掷骰与抽牌走 `seed` 播种的确定性 RNG，可复现。
+2. `game.json` 声明用哪些**规则**（`family` 选家族预设，可在 `rules` 里按分类覆盖，值可为数组）→ 实例化一组规则 → 注册表达式函数/效果/独占接口。
+3. 校验：表结构、表达式语法与函数、**名字契约**（未知即告警）、**能力依赖与独占冲突**、重名函数/效果、剧本边界——全部在**加载时**拦下。
+4. 固定管线跑规则：`校验 → 掷骰 → 结算(CRT) → 效果 → 触发 → 终局`。掷骰与抽牌走 `seed` 播种的确定性 RNG，可复现。
 
 ## 概念速览
 
-- **子系统 × 变体**：`map`、`movement`、`combat`、`dice`、`turn`、`victory`、`counter`、`control`、`supply`、`scenario`、`cards`、`stacking`（见上表）。变体 = 一个成熟算法实现 + JSON 配置，长期目标是每个子系统积累十几变体。
+- **正交能力 × 变体**：独占能力 `map`、`counter`、`movement`、`combat`、`dice`、`turn`、`scenario`、`cards`、`stacking`、`zoc`、`territory`、`supply` 各至多一个；函数/效果按名唯一；分类（目录）只作分组。变体 = 一个成熟算法实现 + JSON 配置，长期目标是每个能力积累十几变体。
 - **表达式语言**：`counter.owner == me`、`dist(counter,pos) == 1`、`moveCost(counter,pos) <= counter.moveLeft`、`effStr(counter)/effStr(target)`——小众规则就写在这里。
 - **效果原语**：`move/flip/remove/retreat/setattr/setside/setvar/addvar/log/endphase/pass/advance/eliminate`；子系统效果 `control`/`steploss`/`damage`/`exit`。
 - **逃生门**：`game.json` 的 `hookType` 可指向一个 C# `IHook` 实现，兜底 JSON 表达不了的规则。

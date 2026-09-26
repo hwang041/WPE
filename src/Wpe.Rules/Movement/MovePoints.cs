@@ -24,7 +24,7 @@ public sealed class MovePoints : RuleVariantBase, IMovementModule
         Description = "行动点移动：每格地形费 + 河流费，BFS 可达区域",
         Requires = new[] { "map" },
         RequiresVariants = new[] { "map:hexGrid" },
-        Provides = new[] { "reachability", "moveCost", "riverCost" },
+        Provides = new[] { "movement", "reachability", "moveCost", "riverCost" },
         Status = "stable"
     };
 

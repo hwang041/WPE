@@ -1,0 +1,8 @@
+{
+  "subsystem": "territory",
+  "id": "controlPoints",
+  "fields": {
+    "initialFromMap": { "type": "bool", "default": true, "desc": "按地图声明的初始控制者填充（已有部署覆盖优先）" },
+    "initialFromUnits": { "type": "bool", "default": false, "desc": "部署后按单位位置初始化控制权" }
+  }
+}

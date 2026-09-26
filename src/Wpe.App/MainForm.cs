@@ -540,8 +540,8 @@ public sealed class MainForm : Form
         _state.ResultMessage = snap.ResultMessage;
         _state.Vars.Clear();
         foreach (var (k, v) in snap.Vars) _state.Vars[k] = v;
-        _state.Control.Clear();
-        foreach (var (k, v) in snap.Control) _state.Control[k] = v;
+        _state.Territory.Clear();
+        foreach (var (k, v) in snap.Territory) _state.Territory[k] = v;
         _state.Log.Clear();
         _state.Log.AddRange(snap.Log);
         _state.LastDice.Clear();

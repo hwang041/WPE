@@ -3,10 +3,10 @@
   "id": "objectives",
   "version": "1.0.0",
   "status": "stable",
-  "description": "目标点胜利：按控制权统计胜利格 + endConditions",
+  "description": "目标点：objectivesHeld(玩家) 按控制权统计胜利格（终局条件由内核 endConditions 判定）",
   "configFile": "game.json",
-  "requires": ["map"],
-  "provides": ["endConditions", "objectivesHeld", "objective"],
+  "requires": ["map", "territory"],
+  "provides": ["objectivesHeld", "objective"],
   "configSchema": {
     "endConditions": "[{when,message,winner?}] 使用 objectivesHeld(玩家) 判定控制点数",
     "map.victoryHexes": "目标格坐标（map.json）"

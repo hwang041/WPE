@@ -61,7 +61,7 @@ internal static class Program
     {
         var map = game.State.Map ?? throw new InvalidOperationException("该游戏没有地图");
         using var bmp = MapRenderer.Render(map, game.State.CountersOnBoard().ToList(), showHexNumbers: false,
-            factions: game.Def.Factions, nodeTypes: game.Def.NodeTypes, control: game.State.Control);
+            factions: game.Def.Factions, nodeTypes: game.Def.NodeTypes, territory: game.State.Territory);
         CounterRenderer.SavePng(bmp, Path.GetFullPath(outPath));
         Console.WriteLine($"shot saved: {Path.GetFullPath(outPath)} ({bmp.Width}x{bmp.Height})");
     }

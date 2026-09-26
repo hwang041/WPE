@@ -1,0 +1,18 @@
+{
+  "subsystem": "combat",
+  "id": "stepLoss",
+  "version": "1.0.0",
+  "status": "stable",
+  "description": "双方步损 CRT：结果码 '攻/守' → attLoss/defLoss 数值",
+  "configFile": "combat.json",
+  "requires": ["dice"],
+  "provides": ["combatResolution", "stepLoss"],
+  "configSchema": {
+    "<combatId>": {
+      "rowExpr": "战力比表达式",
+      "colExpr": "骰值表达式",
+      "resultVar": "原始结果码存入的变量名(默认 result)",
+      "table": "{id, rows:[{min,max,columns:[{min,max,result:\"攻/守\"}]}]}"
+    }
+  }
+}

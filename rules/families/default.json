@@ -4,6 +4,8 @@
   "variants": {
     "map": "hexGrid",
     "counter": "generic",
+    "control": "off",
+    "supply": "off",
     "scenario": "generic",
     "movement": "movePoints",
     "combat": "crTable",

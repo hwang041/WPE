@@ -1,0 +1,13 @@
+{
+  "subsystem": "victory",
+  "id": "exit",
+  "version": "1.0.0",
+  "status": "stable",
+  "description": "退场胜利：exit 效果离场并计数，exitedStrength 统计",
+  "configFile": "game.json",
+  "requires": [],
+  "provides": ["endConditions", "exit", "exitedStrength"],
+  "configSchema": {
+    "endConditions": "[{when,message,winner?}] 使用 exitedStrength(玩家) 判定退场战力"
+  }
+}

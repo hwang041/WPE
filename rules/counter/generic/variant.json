@@ -3,10 +3,10 @@
   "id": "generic",
   "version": "1.0.0",
   "status": "stable",
-  "description": "通用算子目录：units.json 键 → 基础属性",
+  "description": "通用算子目录：units.json 键 → 基础属性；正背两态战力/移动",
   "configFile": "units.json",
   "requires": [],
-  "provides": ["roster"],
+  "provides": ["roster", "effStr", "effMove"],
   "configSchema": {
     "<算子键>": {
       "name": "显示名",

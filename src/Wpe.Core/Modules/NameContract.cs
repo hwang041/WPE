@@ -31,12 +31,13 @@ public sealed class NameContract
     {
         var c = new NameContract();
         c.AddRoot("me", "turn", "phase", "player", "counter", "target", "targetcounter", "pos", "state");
-        c.AddCtxVar("roll", "raw", "result", "card", "cardValue", "cardKind");
+        c.AddCtxVar("roll", "raw", "result", "attLoss", "defLoss", "card", "cardValue", "cardKind");
         c.AddCounterAttr(
             ContractNames.Name, ContractNames.Owner, ContractNames.Strength, ContractNames.Move,
             ContractNames.MoveLeft, ContractNames.Acted, ContractNames.Faction, ContractNames.Type,
             ContractNames.Key, ContractNames.Color, ContractNames.PenaltyStrength, ContractNames.PenaltyMove,
-            ContractNames.EntryTurn, ContractNames.EntryHex, ContractNames.Node, "hex", "rotation");
+            ContractNames.EntryTurn, ContractNames.EntryHex, ContractNames.Node,
+            ContractNames.Eliminated, ContractNames.Entrenched, ContractNames.Exited, "hex", "rotation");
         return c;
     }
 

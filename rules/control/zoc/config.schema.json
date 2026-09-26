@@ -1,0 +1,11 @@
+{
+  "subsystem": "control",
+  "id": "zoc",
+  "fields": {
+    "projectTypes": { "type": "string[]", "default": [], "desc": "只由这些兵种投影 ZOC（空=全部）" },
+    "stopOnEnter": { "type": "bool", "default": true, "desc": "进入敌 ZOC 后必须停止移动" },
+    "exitCost": { "type": "number", "default": 0, "desc": "离开敌 ZOC 的额外移动费" },
+    "noProjectAcrossRiver": { "type": "bool", "default": false, "desc": "河流阻断 ZOC 投影" },
+    "noProjectTerrain": { "type": "string[]", "default": [], "desc": "不向其投影 ZOC 的地形字母" }
+  }
+}

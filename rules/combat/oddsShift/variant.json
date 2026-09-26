@@ -1,0 +1,19 @@
+{
+  "subsystem": "combat",
+  "id": "oddsShift",
+  "version": "1.0.0",
+  "status": "stable",
+  "description": "战力比 + 列移位 CRT：骰值加修正列后再查表",
+  "configFile": "combat.json",
+  "requires": ["dice"],
+  "provides": ["combatResolution", "combatShifts"],
+  "configSchema": {
+    "<combatId>": {
+      "rowExpr": "战力比表达式，如 effStr(counter)/effStr(target)",
+      "colExpr": "骰值表达式，如 roll",
+      "shifts": "[表达式] 加到列上的修正（地形/协同/侧翼等）",
+      "resultVar": "结果码存入的变量名(默认 result)",
+      "table": "{id, rows:[{min,max,columns:[{min,max,result}]}]}"
+    }
+  }
+}

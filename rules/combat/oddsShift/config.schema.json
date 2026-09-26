@@ -1,0 +1,11 @@
+{
+  "subsystem": "combat",
+  "id": "oddsShift",
+  "fields": {
+    "rowExpr": { "type": "expr", "required": true, "desc": "战力比表达式" },
+    "colExpr": { "type": "expr", "required": true, "desc": "骰值表达式" },
+    "shifts": { "type": "expr[]", "default": [], "desc": "加到列上的修正表达式" },
+    "resultVar": { "type": "string", "default": "result", "desc": "结果码存入的变量名" },
+    "table": { "type": "table", "required": true, "desc": "区间行 × 区间列 → 结果码" }
+  }
+}

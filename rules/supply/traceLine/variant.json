@@ -1,0 +1,18 @@
+{
+  "subsystem": "supply",
+  "id": "traceLine",
+  "version": "1.0.0",
+  "status": "stable",
+  "description": "补给线：从单位沿相邻格追溯至本方补给源，敌单位/敌 ZOC/地形可阻断",
+  "configFile": "game.json",
+  "requires": ["map", "counter"],
+  "provides": ["supply", "inSupply", "traceLine"],
+  "configSchema": {
+    "sources": "{owner: [\"q,r\", ...]} 各方补给源格",
+    "range": "int 最大追溯格数（0=不限）",
+    "costBudget": "number 最大移动费预算（0=忽略费用）",
+    "blockedByEnemyUnit": "bool 敌单位阻断（默认 true）",
+    "blockedByEnemyZoc": "bool 敌 ZOC 阻断（默认 false）",
+    "allowedTerrain": "[地形字母] 只允许经过这些地形（空=全部）"
+  }
+}

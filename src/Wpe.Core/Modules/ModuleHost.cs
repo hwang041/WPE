@@ -47,6 +47,43 @@ public interface IStackingModule
     int MaxPerHex { get; }
 }
 
+/// <summary>Counter subsystem: the unit model — how effective strength/move are derived
+/// (e.g. binary front/back, multi-step, damage track).</summary>
+public interface ICounterModule
+{
+    /// <summary>Effective combat strength of a counter under this unit model.</summary>
+    double EffectiveStrength(CounterState counter);
+
+    /// <summary>Effective movement allowance of a counter under this unit model.</summary>
+    double EffectiveMove(CounterState counter);
+}
+
+/// <summary>Control subsystem: zone of control projection (used by movement) and hex
+/// ownership queries. Owner values use the engine's player numbering; -1 = none.</summary>
+public interface IControlModule
+{
+    /// <summary>Owner projecting a zone of control into the given cell, or -1.</summary>
+    int ZocProjectorOwner(GameState state, HexCoord hex);
+
+    /// <summary>Whether the given moving owner is entering an enemy zone of control.</summary>
+    bool IsEnemyZoc(GameState state, HexCoord hex, int movingOwner);
+
+    /// <summary>Movement stops upon entering an enemy zone of control.</summary>
+    bool StopsMovementOnEnter { get; }
+
+    /// <summary>Extra movement cost to leave an enemy zone of control.</summary>
+    float ZocExitCost { get; }
+}
+
+/// <summary>Supply subsystem: whether a unit is in supply and how far it traces.</summary>
+public interface ISupplyModule
+{
+    bool InSupply(GameState state, CounterState unit);
+
+    /// <summary>Trace distance to the nearest source; -1 when out of supply / not traceable.</summary>
+    int SupplyDistance(GameState state, CounterState unit);
+}
+
 /// <summary>Movement subsystem: how far units can go and what stepping costs.</summary>
 public interface IMovementModule
 {
@@ -107,6 +144,9 @@ public sealed class ModuleHost
     /// <summary>Deterministic RNG shared by card draws and the "roll" effect (reseeded on reset).</summary>
     public SeededRandom Rng { get; set; } = new(20240913);
 
+    public ICounterModule? Counter { get; set; }
+    public IControlModule? Control { get; set; }
+    public ISupplyModule? Supply { get; set; }
     public IMovementModule? Movement { get; set; }
     public IStackingModule? Stacking { get; set; }
     public ICombatModule? Combat { get; set; }

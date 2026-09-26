@@ -26,6 +26,8 @@ public sealed class GridMap : IMap
 
     public bool TryResolveCell(string key, out HexCoord cell) { cell = default; return false; }
 
+    public string CellKey(HexCoord c) => $"{c.Q},{c.R}";
+
     /// <summary>Per-hex terrain codes, one string per row (each of length == Columns).</summary>
     public string[] Terrain { get; set; } = Array.Empty<string>();
 

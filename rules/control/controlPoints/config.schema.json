@@ -1,0 +1,7 @@
+{
+  "subsystem": "control",
+  "id": "controlPoints",
+  "fields": {
+    "initialFromUnits": { "type": "bool", "default": true, "desc": "部署后按单位位置初始化控制权" }
+  }
+}

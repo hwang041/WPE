@@ -1,0 +1,17 @@
+{
+  "subsystem": "movement",
+  "id": "zoc",
+  "version": "1.0.0",
+  "status": "stable",
+  "description": "ZOC 移动：行动点移动 + 进入敌控制区必停/离开加费",
+  "configFile": "movement.json",
+  "requires": ["map", "counter", "control"],
+  "requiresVariants": ["map:hexGrid"],
+  "provides": ["reachability", "moveCost", "riverCost", "zocReachability"],
+  "configSchema": {
+    "terrainCost": "地形字母 -> 进入该格移动费",
+    "terrainDefenseBonus": "地形字母 -> 防御修正",
+    "riverCrossCost": "跨河额外移动费(渡口为0)",
+    "note": "ZOC 开关由 control 变体配置（stopOnEnter/exitCost）"
+  }
+}

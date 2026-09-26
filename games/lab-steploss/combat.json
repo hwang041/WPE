@@ -1,0 +1,19 @@
+{
+  "combat": {
+    "rowExpr": "effStr(counter) / effStr(target)",
+    "colExpr": "roll",
+    "resultVar": "result",
+    "table": {
+      "id": "stepLoss",
+      "rows": [
+        { "min": 2, "max": 999, "columns": [
+          { "min": 1, "max": 3, "result": "1/1" },
+          { "min": 4, "max": 6, "result": "0/2" } ] },
+        { "min": 1, "max": 1.99, "columns": [
+          { "min": 1, "max": 6, "result": "1/1" } ] },
+        { "min": 0, "max": 0.99, "columns": [
+          { "min": 1, "max": 6, "result": "2/0" } ] }
+      ]
+    }
+  }
+}

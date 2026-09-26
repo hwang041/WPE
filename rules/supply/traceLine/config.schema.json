@@ -1,0 +1,12 @@
+{
+  "subsystem": "supply",
+  "id": "traceLine",
+  "fields": {
+    "sources": { "type": "{owner:[q,r]}", "default": {}, "desc": "各方补给源格" },
+    "range": { "type": "int", "default": 0, "desc": "最大追溯格数（0=不限）" },
+    "costBudget": { "type": "number", "default": 0, "desc": "最大移动费预算（0=忽略费用）" },
+    "blockedByEnemyUnit": { "type": "bool", "default": true, "desc": "敌单位阻断" },
+    "blockedByEnemyZoc": { "type": "bool", "default": false, "desc": "敌 ZOC 阻断" },
+    "allowedTerrain": { "type": "string[]", "default": [], "desc": "只允许经过这些地形（空=全部）" }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "subsystem": "control",
+  "id": "off",
+  "version": "1.0.0",
+  "status": "stable",
+  "description": "关闭控制子系统：无 ZOC、无归属跟踪（中性函数）",
+  "requires": [],
+  "provides": []
+}

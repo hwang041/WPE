@@ -47,11 +47,8 @@ public static class CoreFunctions
         host.AddFunction("isfront", (ctx, a) => ExprArgs.Counter(a, 0)?.IsBack == false);
         host.AddFunction("notacted", (ctx, a) => ExprArgs.Counter(a, 0)?.AttributeInt(def.ActedAttr, 0) == 0);
 
-        // --- effective values (damaged-side penalties) ---
-        host.AddFunction("effstr", (ctx, a) => (double)EffStr(ExprArgs.Counter(a, 0)));
-        host.AddFunction("effective_strength", (ctx, a) => (double)EffStr(ExprArgs.Counter(a, 0)));
-        host.AddFunction("effmove", (ctx, a) => (double)EffMove(ExprArgs.Counter(a, 0)));
-        host.AddFunction("effective_move", (ctx, a) => (double)EffMove(ExprArgs.Counter(a, 0)));
+        // --- effective values (effStr/effMove) are provided by the counter subsystem,
+        //     which owns the unit model (binary front/back, multi-step, damage track). ---
 
         // --- counts ---
         host.AddFunction("enemycount", (ctx, a) =>
@@ -78,20 +75,6 @@ public static class CoreFunctions
         host.AddFunction("size", (ctx, a) => (double)(a.Length > 0 ? (a[0]?.ToString()?.Length ?? 0) : 0));
         host.AddFunction("if", (ctx, a) => ValueAccessor.AsBool(a.Length > 0 ? a[0] : false) && a.Length > 1 ? a[1] : a.Length > 2 ? a[2] : null);
         host.AddFunction("not", (ctx, a) => !ValueAccessor.AsBool(a.Length > 0 ? a[0] : false));
-    }
-
-    private static double EffStr(CounterState? c)
-    {
-        if (c == null) return 0;
-        var p = c.AttributeFloat(ContractNames.PenaltyStrength, 0);
-        return c.AttributeFloat(ContractNames.Strength) - (c.IsBack ? p : 0);
-    }
-
-    private static double EffMove(CounterState? c)
-    {
-        if (c == null) return 0;
-        var p = c.AttributeFloat(ContractNames.PenaltyMove, 0);
-        return c.AttributeFloat(ContractNames.Move) - (c.IsBack ? p : 0);
     }
 
     private static int Dist(RuleContext ctx, HexCoord a, HexCoord b)

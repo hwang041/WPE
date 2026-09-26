@@ -1,0 +1,20 @@
+{
+  "subsystem": "counter",
+  "id": "stepped",
+  "version": "1.0.0",
+  "status": "stable",
+  "description": "多步算子：steps/maxSteps 派生战力，steploss 削减（半力翻面、归零歼灭）",
+  "configFile": "units.json",
+  "requires": [],
+  "provides": ["roster", "effStr", "steploss"],
+  "configSchema": {
+    "<算子键>": {
+      "name": "显示名",
+      "type": "类型",
+      "strength": "满编战力",
+      "move": "移动力",
+      "steps": "当前步数",
+      "maxSteps": "满编步数"
+    }
+  }
+}

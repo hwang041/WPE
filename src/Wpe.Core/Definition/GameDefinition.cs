@@ -126,6 +126,9 @@ public sealed class CombatDef
     public string ColExpr { get; set; } = "";
     public string ResultVar { get; set; } = "result";
     public TableDef? Table { get; set; }
+    /// <summary>oddsShift: expressions summed into the die column before the table lookup
+    /// (terrain, combined arms, supply, flanking modifiers).</summary>
+    public List<string> Shifts { get; set; } = new();
 }
 
 public sealed class TableDef

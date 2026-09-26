@@ -1,0 +1,19 @@
+{
+  "subsystem": "counter",
+  "id": "damageTrack",
+  "version": "1.0.0",
+  "status": "stable",
+  "description": "损伤轨算子：damage 累积，战力/移动按损伤衰减",
+  "configFile": "units.json",
+  "requires": [],
+  "provides": ["roster", "effStr", "effMove", "damage"],
+  "configSchema": {
+    "<算子键>": {
+      "name": "显示名",
+      "type": "类型",
+      "strength": "完好战力",
+      "move": "完好移动力",
+      "damage": "初始损伤（默认 0）"
+    }
+  }
+}

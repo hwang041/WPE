@@ -1,0 +1,6 @@
+{
+  "p0a": { "name": "红 1", "type": "infantry", "strength": 4, "move": 5 },
+  "p0b": { "name": "红 2", "type": "infantry", "strength": 4, "move": 5 },
+  "p1a": { "name": "蓝 1", "type": "infantry", "strength": 4, "move": 5 },
+  "p1b": { "name": "蓝 2", "type": "infantry", "strength": 4, "move": 5 }
+}

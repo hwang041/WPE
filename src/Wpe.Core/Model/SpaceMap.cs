@@ -185,6 +185,8 @@ public sealed class SpaceMap : IMap
         return false;
     }
 
+    public string CellKey(HexCoord c) => NodeIdOf(c);
+
     public static SpaceMap Parse(string json)
     {
         var spec = JsonSerializer.Deserialize<SpaceMap>(json, JsonOpts)

@@ -71,16 +71,23 @@ games/<名字>/
 | map | `pointToPoint` | `spacemap.json` | 城镇节点 + 道路；节点城防/势力 |
 | movement | `movePoints` | `movement.json` | 行动点移动：地形费 + 河流费，BFS 可达 |
 | movement | `roadNetwork` | — | 沿道路逐段走，禁入敌占节点 |
+| movement | `zoc` | `movement.json` | 行动点移动 + 进入敌控制区必停/离开加费 |
 | combat | `crTable` | `combat.json` | 战力比行 × 骰子列 → 结果码 |
+| combat | `oddsShift` | `combat.json` | 战力比 + 列移位（地形/协同/侧翼修正） |
+| combat | `stepLoss` | `combat.json` | 双方步损（`攻/守` → attLoss/defLoss） |
 | dice | `d6` | — | dN 骰（可复现随机） |
 | turn | `phases` | `game.json` `turnReset` | IGO-UGO 阶段回合 |
 | victory | `vpAndSudden` | `game.json` `endConditions` | 胜利点 + 突然死亡 |
-| counter | `generic` | `units.json` | 算子目录 |
+| victory | `objectives` / `exit` / `attrition` | `game.json` `endConditions` | 目标点 / 退场 / 战损 |
+| counter | `generic` | `units.json` | 算子目录（正背两态） |
+| counter | `stepped` / `damageTrack` | `units.json` | 多步 / 损伤轨算子模型 |
+| control | `off` / `zoc` / `controlPoints` | `game.json` `rules.control.config` | 控制区 / 按格归属 + `control` 效果 |
+| supply | `off` / `traceLine` | `game.json` `rules.supply.config` | 补给线追溯（`inSupply`） |
 | scenario | `generic` | `scenario.json` | 部署 / 援军 / 按节点部署 |
 | cards | `standard` | `cards.json` | 牌库/手牌/抽洗弃/手牌上限/事件牌 |
 | stacking | `unlimited` / `perHex` | `game.json` `rules.stacking.config` | 每格堆叠上限 |
 
-> `family: "default"` 自动装配常用子系统；只需在 `rules` 里**覆盖**想换的子系统即可。表达式函数、效果原语、算法接缝都由变体注册——换变体时只要提供的函数名一致，规则无需改动。
+> `family: "default"` 自动装配常用子系统；只需在 `rules` 里**覆盖**想换的子系统即可。表达式函数、效果原语、算法接口都由变体注册——换变体时只要提供的函数名一致，规则无需改动。
 
 ## 配置 Demo：六角格 + 卡驱（零胶水）
 
@@ -122,15 +129,15 @@ games/<名字>/
 ## 中台（引擎）怎么读懂这些表
 
 1. 平台从 `rules/**/variant.json` 读规则库（`RuleCatalog`），并反射发现代码里的变体实现（`VariantRegistry`），二者 **1:1 对账**。
-2. `game.json` 声明用哪些**规则变体**（`family` 选家族预设，可在 `rules` 里覆盖任意一个）→ 实例化变体 → 注册表达式函数/效果原语/算法接缝。
+2. `game.json` 声明用哪些**规则变体**（`family` 选家族预设，可在 `rules` 里覆盖任意一个）→ 实例化变体 → 注册表达式函数/效果原语/算法接口。
 3. 校验：表结构、表达式语法与函数、表达式里的**名字契约**（未知即告警）、变体依赖组合、剧本边界——全部在**加载时**拦下。
 4. 固定管线跑规则：`校验 → 掷骰 → 结算(CRT) → 效果 → 触发 → 胜利`。掷骰与抽牌走 `seed` 播种的确定性 RNG，可复现。
 
 ## 概念速览
 
-- **子系统 × 变体**：`map`、`movement`、`combat`、`dice`、`turn`、`victory`、`counter`、`scenario`、`cards`、`stacking`（见上表）。变体 = 一个成熟算法实现 + JSON 配置，长期目标是每个子系统积累十几变体。
+- **子系统 × 变体**：`map`、`movement`、`combat`、`dice`、`turn`、`victory`、`counter`、`control`、`supply`、`scenario`、`cards`、`stacking`（见上表）。变体 = 一个成熟算法实现 + JSON 配置，长期目标是每个子系统积累十几变体。
 - **表达式语言**：`counter.owner == me`、`dist(counter,pos) == 1`、`moveCost(counter,pos) <= counter.moveLeft`、`effStr(counter)/effStr(target)`——小众规则就写在这里。
-- **效果原语**：`move/flip/remove/retreat/setattr/setside/setvar/addvar/log/endphase/pass`。
+- **效果原语**：`move/flip/remove/retreat/setattr/setside/setvar/addvar/log/endphase/pass/advance/eliminate`；子系统效果 `control`/`steploss`/`damage`/`exit`。
 - **逃生门**：`game.json` 的 `hookType` 可指向一个 C# `IHook` 实现，兜底 JSON 表达不了的规则。
 
 详见 `docs/`。入门读 `docs/属性与数据契约.md` 和 `docs/规则库.md`。

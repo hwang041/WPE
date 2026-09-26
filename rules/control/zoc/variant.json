@@ -1,0 +1,17 @@
+{
+  "subsystem": "control",
+  "id": "zoc",
+  "version": "1.0.0",
+  "status": "stable",
+  "description": "控制区：相邻格投影 ZOC，进入敌 ZOC 必停/离开加费",
+  "configFile": "game.json",
+  "requires": ["map", "counter"],
+  "provides": ["zoc", "inZoc", "zocOwner"],
+  "configSchema": {
+    "projectTypes": "[类型] 只由这些兵种投影 ZOC（空=全部）",
+    "stopOnEnter": "bool 进入敌 ZOC 后必须停止移动（默认 true）",
+    "exitCost": "number 离开敌 ZOC 的额外移动费（默认 0）",
+    "noProjectAcrossRiver": "bool 河流阻断 ZOC 投影（默认 false）",
+    "noProjectTerrain": "[地形字母] 不向其投影 ZOC"
+  }
+}

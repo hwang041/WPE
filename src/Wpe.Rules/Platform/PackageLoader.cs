@@ -279,6 +279,7 @@ public static class PackageLoader
         {
             Check($"combat.{id}.rowExpr", cbt.RowExpr);
             Check($"combat.{id}.colExpr", cbt.ColExpr);
+            foreach (var s in cbt.Shifts) Check($"combat.{id}.shift", s);
         }
     }
 
@@ -288,7 +289,8 @@ public static class PackageLoader
         {
             check($"{where}.when", e.When);
             // e.Value is only an expression for these effects; setside stores a keyword ("front"/"back").
-            if (e.Effect is "setattr" or "setvar" or "addvar" or "control")
+            if (e.Effect is "setattr" or "setvar" or "addvar" or "control"
+                or "capture" or "steploss" or "damage" or "exit")
                 check($"{where}.value", e.Value);
             check($"{where}.x", e.X);
             check($"{where}.y", e.Y);

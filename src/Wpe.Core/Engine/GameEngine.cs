@@ -234,6 +234,9 @@ public sealed class GameEngine
         var move = Def.Moves[moveId];
         var ctx = MakeContext(counter, pos, target);
         if (card != null) ctx.Vars["card"] = card;
+        // remember where the target stood, so `advance` can move into a vacated cell
+        if (target != null) ctx.Vars["targetHex"] = target.Hex;
+        else if (pos.HasValue) ctx.Vars["targetHex"] = pos.Value;
         Hook?.OnBeforeMove(ctx, moveId);
 
         if (move.NeedsCard && card != null && Host.Cards.TryGetValue(card.DefId, out var cdef))
@@ -361,6 +364,15 @@ public sealed class GameEngine
             var c = Select(ctx, e);
             if (c != null) c.Position = null;
         });
+        Host.AddEffect("eliminate", (ctx, e) =>
+        {
+            var c = Select(ctx, e);
+            if (c == null) return;
+            c.Position = null;
+            c.Attributes[ContractNames.Eliminated] = 1;
+            State.LogMessage($"{c.Name} 被歼灭");
+        });
+        Host.AddEffect("advance", AdvanceEffect);
         Host.AddEffect("retreat", RetreatEffect);
         Host.AddEffect("setattr", (ctx, e) =>
         {
@@ -449,6 +461,21 @@ public sealed class GameEngine
         if (e.To == "pos" && ctx.TargetPos.HasValue) c.Position = ctx.TargetPos.Value;
         else if (!string.IsNullOrEmpty(e.X) && !string.IsNullOrEmpty(e.Y))
             c.Position = new HexCoord((int)GetExpr(e.X).EvalNumber(ctx), (int)GetExpr(e.Y).EvalNumber(ctx));
+    }
+
+    /// <summary>Advance after combat: move the counter into the target's (now vacated) cell.</summary>
+    private void AdvanceEffect(RuleContext ctx, EffectDef e)
+    {
+        var c = Select(ctx, e);
+        if (c == null || !c.OnBoard) return;
+        if (!ctx.Vars.TryGetValue("targetHex", out var th) || th is not HexCoord hex) return;
+        if (State.CountersOnBoard().Any(x => !ReferenceEquals(x, c) && x.Hex == hex))
+        {
+            State.LogMessage($"{c.Name} 无格可推进（目标格被占据）");
+            return;
+        }
+        c.Position = hex;
+        State.LogMessage($"{c.Name} 推进至 ({hex.Q},{hex.R})");
     }
 
     private void RetreatEffect(RuleContext ctx, EffectDef e)

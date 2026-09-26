@@ -1,0 +1,60 @@
+{
+  "id": "lab-steploss",
+  "name": "实验场 · 步损",
+  "playerCount": 2,
+  "family": "default",
+  "rules": {
+    "map":      { "variant": "hexGrid",    "file": "map.json" },
+    "counter":  { "variant": "stepped",    "file": "units.json" },
+    "control":  { "variant": "off" },
+    "movement": { "variant": "movePoints", "file": "movement.json" },
+    "combat":   { "variant": "stepLoss",   "file": "combat.json" },
+    "scenario": { "variant": "generic",    "file": "scenario.json" }
+  },
+  "phaseOrder": [ "action" ],
+  "phaseLabels": { "action": "行动" },
+  "autoActWhenExhausted": true,
+  "turnReset": [
+    { "attr": "acted", "value": "0" },
+    { "attr": "moveLeft", "value": "expr:effMove(counter)" }
+  ],
+  "moves": {
+    "endphase": { "id": "endphase", "label": "结束阶段", "effects": [ { "effect": "endphase" } ] },
+    "move": {
+      "id": "move", "kind": "movement", "label": "移动",
+      "phase": "action", "needsCounter": true, "needsPosition": true,
+      "counterFilter": "counter.owner == me && counter.steps > 0",
+      "validators": [
+        "notacted(counter)", "inBounds(pos)", "dist(counter, pos) == 1",
+        "moveCost(counter, pos) <= counter.moveLeft", "not(occupied(pos))"
+      ],
+      "effects": [
+        { "effect": "move", "counter": "counter", "to": "pos" },
+        { "effect": "setattr", "counter": "counter", "key": "moveLeft",
+          "value": "counter.moveLeft - moveCost(counter, pos)" }
+      ]
+    },
+    "attack": {
+      "id": "attack", "kind": "combat", "label": "攻击",
+      "phase": "action", "needsCounter": true, "needsTargetCounter": true,
+      "counterFilter": "counter.owner == me && counter.steps > 0",
+      "targetFilter": "target.owner != me",
+      "validators": [ "notacted(counter)", "dist(counter, target) == 1" ],
+      "roll": { "var": "roll", "count": 1, "sides": 6, "hand": 0 },
+      "combat": "combat",
+      "effects": [
+        { "effect": "steploss", "counter": "target", "value": "defLoss" },
+        { "effect": "steploss", "counter": "counter", "value": "attLoss" },
+        { "effect": "setattr", "counter": "counter", "key": "acted", "value": "1" }
+      ]
+    },
+    "pass": {
+      "id": "pass", "kind": "pass", "label": "结束行动",
+      "isEndAction": true, "phase": "action", "needsCounter": true,
+      "counterFilter": "counter.owner == me",
+      "validators": [ "notacted(counter)" ],
+      "effects": [ { "effect": "setattr", "counter": "counter", "key": "acted", "value": "1" } ]
+    }
+  },
+  "endConditions": [ { "when": "enemycount(me) == 0", "message": "敌军被全歼，你获得了胜利！" } ]
+}

@@ -1,0 +1,14 @@
+{
+  "subsystem": "victory",
+  "id": "attrition",
+  "version": "1.0.0",
+  "status": "stable",
+  "description": "战损胜利：按歼灭标记统计双方损失",
+  "configFile": "game.json",
+  "requires": ["counter"],
+  "provides": ["endConditions", "destroyedStrength", "lostStrength"],
+  "configSchema": {
+    "endConditions": "[{when,message,winner?}] 使用 destroyedStrength/lostStrength 判定战损",
+    "note": "歼敌请使用 eliminate 效果（会写入 eliminated 标记）"
+  }
+}

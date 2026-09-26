@@ -43,4 +43,10 @@ public interface IMap
     /// named cells and return false, so scenario/rule code can stay map-agnostic.
     /// </summary>
     bool TryResolveCell(string key, out HexCoord cell);
+
+    /// <summary>
+    /// Stable string key for a cell, used by subsystems that persist per-cell data
+    /// (e.g. control/ownership). Hex grids use "q,r"; point-to-point maps use the node id.
+    /// </summary>
+    string CellKey(HexCoord cell);
 }

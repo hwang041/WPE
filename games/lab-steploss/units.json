@@ -1,0 +1,6 @@
+{
+  "p0a": { "name": "红 1", "type": "infantry", "strength": 6, "move": 5, "steps": 3, "maxSteps": 3 },
+  "p0b": { "name": "红 2", "type": "armor", "strength": 8, "move": 6, "steps": 4, "maxSteps": 4 },
+  "p1a": { "name": "蓝 1", "type": "infantry", "strength": 6, "move": 5, "steps": 3, "maxSteps": 3 },
+  "p1b": { "name": "蓝 2", "type": "armor", "strength": 8, "move": 6, "steps": 4, "maxSteps": 4 }
+}

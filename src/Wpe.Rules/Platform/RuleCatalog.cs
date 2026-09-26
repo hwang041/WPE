@@ -29,11 +29,11 @@ public sealed class RuleCatalog
 {
     /// <summary>Subsystem load order (map first: it builds the shared map data).</summary>
     public static readonly string[] SubsystemOrder =
-        { "map", "counter", "movement", "combat", "dice", "turn", "victory", "scenario", "cards", "stacking" };
+        { "map", "counter", "control", "supply", "movement", "combat", "dice", "turn", "victory", "scenario", "cards", "stacking" };
 
     /// <summary>Order in which variants Apply() to the built state (game data merges last).</summary>
     public static readonly string[] ApplyOrder =
-        { "map", "counter", "scenario", "cards", "movement" };
+        { "map", "counter", "scenario", "control", "cards", "movement" };
 
     private static readonly JsonSerializerOptions JsonOpts = new()
     {

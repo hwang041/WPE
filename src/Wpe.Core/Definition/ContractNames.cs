@@ -23,4 +23,17 @@ public static class ContractNames
     public const string EntryTurn = "entryTurn";
     public const string EntryHex = "entryHex";
     public const string Node = "node";
+
+    // step loss / damage models (counter subsystem variants)
+    public const string Steps = "steps";
+    public const string MaxSteps = "maxSteps";
+    public const string Damage = "damage";
+
+    // unit status flags written by generic effects / subsystems
+    public const string Eliminated = "eliminated";
+    public const string Entrenched = "entrenched";
+    public const string Exited = "exited";
+
+    // supply subsystem
+    public const string InSupply = "inSupply";
 }

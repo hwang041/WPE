@@ -50,6 +50,7 @@ public sealed class BoardRenderer
             SpaceMapPainter.Draw(canvas, space, _state.CountersOnBoard().ToList(), _state.Territory,
                 _state.Def.Factions, _state.Def.NodeTypes);
         DrawCounters(canvas);
+        if (map is GridMap gridLabels) GridMapPainter.DrawLabels(canvas, gridLabels, 1f / Scale);
 
         canvas.Restore();
         if (map is GridMap) DrawLegend(canvas, viewW, viewH);

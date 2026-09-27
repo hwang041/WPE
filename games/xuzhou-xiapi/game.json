@@ -1,0 +1,172 @@
+{
+  "id": "xuzhou-xiapi",
+  "name": "下邳之战",
+  "description": "建安三年(198)曹操与刘备合围下邳、讨伐吕布。复用《徐州之战》的地图与算子，启用控制区(zoc)/领地归属/补给线/堆叠上限，并以目标点(objectives)+战损(attrition)双规则判定胜负。吕布困守孤城，联军须断其外援、克其坚城。",
+  "playerCount": 2,
+  "family": "default",
+  "rules": {
+    "map":       { "variant": "hexGrid",    "file": "map.json" },
+    "counter":   { "variant": "generic",    "file": "units.json" },
+    "scenario":  { "variant": "generic",    "file": "scenario.json" },
+    "movement":  { "variant": "zoc",        "file": "movement.json" },
+    "combat":    { "variant": "oddsShift",  "file": "combat.json" },
+    "dice":      { "variant": "d6" },
+    "turn":      { "variant": "phases" },
+    "zoc":       { "variant": "zoc", "config": {
+      "stopOnEnter": true,
+      "exitCost": 1,
+      "noProjectAcrossRiver": true
+    } },
+    "territory": { "variant": "controlPoints", "config": { "initialFromUnits": true } },
+    "supply":    { "variant": "traceLine", "config": {
+      "sources": { "0": [ "1,9", "5,3" ], "1": [ "22,12", "22,8" ] },
+      "blockedByEnemyUnit": true,
+      "blockedByEnemyZoc": false
+    } },
+    "stacking":  { "variant": "perHex", "config": { "maxPerHex": 3 } },
+    "victory":   [ { "variant": "objectives" }, { "variant": "attrition" } ]
+  },
+  "phaseOrder": [ "action", "turnEnd" ],
+  "phaseLabels": { "action": "行动", "turnEnd": "回合结束" },
+  "damage": { "strengthPenalty": 1, "movePenalty": 1 },
+  "autoActWhenExhausted": true,
+  "turnReset": [
+    { "attr": "acted", "value": "0" },
+    { "attr": "moveLeft", "value": "expr:if(inSupply(counter), effMove(counter), max(0, effMove(counter) - 1))" }
+  ],
+
+  "moves": {
+    "endphase": {
+      "id": "endphase",
+      "label": "结束阶段",
+      "effects": [ { "effect": "endphase" } ]
+    },
+
+    "move": {
+      "id": "move",
+      "kind": "movement",
+      "label": "移动/占领",
+      "phase": "action",
+      "needsCounter": true,
+      "needsPosition": true,
+      "counterFilter": "counter.owner == me",
+      "validators": [
+        "notacted(counter)",
+        "isfront(counter)",
+        "inBounds(pos)",
+        "dist(counter, pos) == 1",
+        "moveCost(counter, pos) + if(inZoc(counter), 1, 0) <= counter.moveLeft",
+        "not(occupied(pos))"
+      ],
+      "effects": [
+        { "effect": "setattr", "counter": "counter", "key": "moveLeft", "value": "counter.moveLeft - moveCost(counter, pos) - if(inZoc(counter), 1, 0)" },
+        { "effect": "move", "counter": "counter", "to": "pos" },
+        { "effect": "control", "counter": "counter", "value": "me" },
+        { "effect": "setattr", "counter": "counter", "key": "acted", "value": "1", "when": "inZoc(pos)" },
+        { "effect": "log", "text": "'进入' + terrainAt(pos) + '地形，剩余移动力' + counter.moveLeft" }
+      ]
+    },
+
+    "attack": {
+      "id": "attack",
+      "kind": "combat",
+      "label": "攻击",
+      "phase": "action",
+      "needsCounter": true,
+      "needsTargetCounter": true,
+      "counterFilter": "counter.owner == me",
+      "targetFilter": "target.owner != me",
+      "validators": [
+        "notacted(counter)",
+        "isfront(counter)",
+        "dist(counter, target) == 1"
+      ],
+      "roll": { "var": "roll", "count": 1, "sides": 6, "hand": 0 },
+      "combat": "combat",
+      "effects": [
+        { "effect": "setattr", "counter": "counter", "key": "acted", "value": "1" },
+        { "effect": "log", "text": "'战力比: ' + effStr(counter) + '/' + effStr(target) + ' 骰=' + roll + ' → ' + result" }
+      ],
+      "resultEffects": {
+        "Adr": [
+          { "effect": "flip", "counter": "counter", "when": "isfront(counter)" },
+          { "effect": "eliminate", "counter": "counter", "when": "isback(counter)" },
+          { "effect": "setattr", "counter": "counter", "key": "moveLeft", "value": "counter.moveLeft - counter.penaltyMove" },
+          { "effect": "retreat", "counter": "counter", "hexes": 1, "onFail": "flip" },
+          { "effect": "log", "text": "'战斗结果：我军受损并后撤！'" }
+        ],
+        "Ad": [
+          { "effect": "flip", "counter": "counter", "when": "isfront(counter)" },
+          { "effect": "eliminate", "counter": "counter", "when": "isback(counter)" },
+          { "effect": "setattr", "counter": "counter", "key": "moveLeft", "value": "counter.moveLeft - counter.penaltyMove" },
+          { "effect": "log", "text": "'战斗结果：我军受创！'" }
+        ],
+        "Ar": [
+          { "effect": "retreat", "counter": "counter", "hexes": 1, "onFail": "flip" },
+          { "effect": "log", "text": "'战斗结果：我军后撤！'" }
+        ],
+        "0": [
+          { "effect": "log", "text": "'战斗结果：相持，无效果'" }
+        ],
+        "Dr": [
+          { "effect": "retreat", "counter": "target", "hexes": 1, "onFail": "flip" },
+          { "effect": "log", "text": "'战斗结果：敌军后撤！'" }
+        ],
+        "Dd": [
+          { "effect": "flip", "counter": "target", "when": "isfront(target)" },
+          { "effect": "eliminate", "counter": "target", "when": "isback(target)" },
+          { "effect": "setattr", "counter": "target", "key": "moveLeft", "value": "counter.moveLeft - counter.penaltyMove" },
+          { "effect": "log", "text": "'战斗结果：敌军受创！'" }
+        ],
+        "Ddr": [
+          { "effect": "flip", "counter": "target", "when": "isfront(target)" },
+          { "effect": "eliminate", "counter": "target", "when": "isback(target)" },
+          { "effect": "setattr", "counter": "target", "key": "moveLeft", "value": "counter.moveLeft - counter.penaltyMove" },
+          { "effect": "retreat", "counter": "target", "hexes": 1, "onFail": "flip" },
+          { "effect": "log", "text": "'战斗结果：敌军受损并后撤！'" }
+        ],
+        "E": [
+          { "effect": "eliminate", "counter": "target" },
+          { "effect": "log", "text": "'战斗结果：敌军被歼灭！'" }
+        ]
+      }
+    },
+
+    "recover": {
+      "id": "recover",
+      "kind": "recover",
+      "label": "恢复",
+      "phase": "action",
+      "needsCounter": true,
+      "counterFilter": "counter.owner == me",
+      "validators": [ "notacted(counter)", "isback(counter)", "inSupply(counter)" ],
+      "effects": [
+        { "effect": "setside", "counter": "counter", "value": "front" },
+        { "effect": "setattr", "counter": "counter", "key": "acted", "value": "1" },
+        { "effect": "log", "text": "'部队休整恢复（需在补给线上）'" }
+      ]
+    },
+
+    "pass": {
+      "id": "pass",
+      "kind": "pass",
+      "label": "结束行动",
+      "isEndAction": true,
+      "phase": "action",
+      "needsCounter": true,
+      "counterFilter": "counter.owner == me",
+      "validators": [ "notacted(counter)" ],
+      "effects": [
+        { "effect": "setattr", "counter": "counter", "key": "acted", "value": "1" },
+        { "effect": "log", "text": "'结束行动'" }
+      ]
+    }
+  },
+
+  "endConditions": [
+    { "when": "objectivesHeld(0) >= 1 && me == 0", "message": "联军攻拔下邳，吕布败亡！", "winner": 0 },
+    { "when": "destroyedStrength(0) >= 18 && me == 0", "message": "吕布军团损失殆尽，下邳城破！", "winner": 0 },
+    { "when": "turn >= 12 && objectivesHeld(1) >= 1 && me == 1", "message": "吕布固守下邳，曹操粮尽退兵！", "winner": 1 },
+    { "when": "enemycount(me) == 0", "message": "敌军被全歼，你获得了胜利！" }
+  ]
+}

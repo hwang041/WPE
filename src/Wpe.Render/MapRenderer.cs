@@ -43,6 +43,7 @@ public static class MapRenderer
                     canvas.DrawBitmap(chip, rect);
                 }
             }
+            GridMapPainter.DrawLabels(canvas, grid);
         }
         else if (map is SpaceMap space)
         {

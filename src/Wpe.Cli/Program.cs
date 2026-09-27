@@ -50,7 +50,7 @@ public static class Program
         Console.WriteLine();
         Console.WriteLine("用法:");
         Console.WriteLine("  wpe verify <游戏包目录>   校验游戏包（配置/表达式/变体组合），报错带位置");
-        Console.WriteLine("  wpe play   <游戏包目录>   无头跑一局（双方自动行动），回归冒烟");
+        Console.WriteLine("  wpe play   <游戏包目录> [--turns N]   无头跑一局（双方自动行动，默认上限 12 回合）");
         Console.WriteLine("  wpe cards  <游戏包目录>   打印牌库/手牌（卡驱游戏）");
         Console.WriteLine("  wpe demo   <游戏包目录>   脚本化自检卡牌系统（行动牌/事件牌结算）");
         Console.WriteLine("  wpe counters <游戏包目录> [输出目录]   批量生成白板算子 PNG（正面+受损面+总表）");
@@ -98,6 +98,9 @@ public static class Program
     {
         if (args.Length < 2) { Console.Error.WriteLine("play 需要一个游戏包目录"); return 1; }
         var dir = Path.GetFullPath(args[1]);
+        int maxTurns = 12;
+        for (int i = 2; i < args.Length; i++)
+            if (args[i] == "--turns" && i + 1 < args.Length && int.TryParse(args[i + 1], out var t)) maxTurns = t;
         var result = PackageLoader.Load(dir);
         if (!result.Ok)
         {
@@ -117,7 +120,7 @@ public static class Program
         // else advance the phase via the endphase move. No phase names / move ids hardcoded.
         var endPhase = engine.EndPhaseMove;
         int guard = 0;
-        while (!state.GameOver && state.TurnNumber <= 12 && guard < 600)
+        while (!state.GameOver && state.TurnNumber <= maxTurns && guard < 20000)
         {
             guard++;
             if (engine.GameOver) break;

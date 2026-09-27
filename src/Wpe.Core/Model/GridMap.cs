@@ -38,6 +38,9 @@ public sealed class GridMap : IMap
     public Dictionary<string, float> TerrainDefenseBonus { get; set; } = new();
     public List<VictoryHexDef> VictoryHexes { get; set; } = new();
 
+    /// <summary>Place-name labels rendered as text on the map (data only, no game logic).</summary>
+    public List<MapLabelDef> Labels { get; set; } = new();
+
     /// <summary>Rivers run along hex edges (not through hexes).</summary>
     public List<RiverDef> Rivers { get; set; } = new();
 
@@ -239,6 +242,16 @@ public sealed class VictoryHexDef
 {
     public int Q { get; set; }
     public int R { get; set; }
+}
+
+/// <summary>A place-name label drawn inside a hex (e.g. a town or river name).</summary>
+public sealed class MapLabelDef
+{
+    public int Q { get; set; }
+    public int R { get; set; }
+    public string Text { get; set; } = "";
+    /// <summary>Optional placement hint: "center" (default), "top" or "bottom".</summary>
+    public string? Anchor { get; set; }
 }
 
 public sealed class RiverDef

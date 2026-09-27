@@ -63,6 +63,47 @@ public static class GridMapPainter
         }
     }
 
+    /// <summary>
+    /// Draw place-name labels (towns, rivers) as text inside their hexes. Call after the
+    /// counters so names stay legible when a hex is occupied. `textScale` keeps the text a
+    /// constant screen size under GUI zoom (pass 1/Scale; the overlay renderer passes 1).
+    /// </summary>
+    public static void DrawLabels(SKCanvas canvas, GridMap map, float textScale = 1f)
+    {
+        if (map.Labels.Count == 0) return;
+        float R = map.HexRadius;
+        using var typeface = CounterRenderer.CjkTypeface();
+        using var bg = new SKPaint { Style = SKPaintStyle.Fill, Color = new SKColor(20, 26, 22, 190), IsAntialias = true };
+        using var halo = new SKPaint
+        {
+            Color = new SKColor(0, 0, 0, 220), IsAntialias = true, FakeBoldText = true,
+            TextAlign = SKTextAlign.Center, Typeface = typeface, TextSize = R * 0.34f * textScale
+        };
+        using var text = new SKPaint
+        {
+            Color = new SKColor(255, 255, 255, 245), IsAntialias = true, FakeBoldText = true,
+            TextAlign = SKTextAlign.Center, Typeface = typeface, TextSize = R * 0.34f * textScale
+        };
+        foreach (var l in map.Labels)
+        {
+            if (string.IsNullOrEmpty(l.Text) || !map.InBounds(new HexCoord(l.Q, l.R))) continue;
+            var c = map.CenterOf(new HexCoord(l.Q, l.R));
+            float dy = (l.Anchor?.ToLowerInvariant()) switch
+            {
+                "bottom" => R * 0.74f,
+                "center" => R * 0.0f,
+                _ => -R * 0.62f
+            };
+            float w = text.MeasureText(l.Text);
+            float h = text.TextSize * 1.25f;
+            var rect = new SKRect(c.X - w / 2f - R * 0.10f, c.Y + dy - h * 0.78f,
+                                  c.X + w / 2f + R * 0.10f, c.Y + dy + h * 0.24f);
+            canvas.DrawRoundRect(rect, R * 0.10f, R * 0.10f, bg);
+            canvas.DrawText(l.Text, c.X + textScale, c.Y + dy + textScale, halo);
+            canvas.DrawText(l.Text, c.X, c.Y + dy, text);
+        }
+    }
+
     public static SKPath HexPath(float cx, float cy, float R, bool pointy)
     {
         var off = HexMath.CornerOffsets(R, pointy);

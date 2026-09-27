@@ -1,0 +1,46 @@
+{
+  "id": "xuzhou-xiapi",
+  "name": "曹操刘备讨吕布 · 下邳之围",
+  "description": "建安三年(198)冬，曹操东征徐州，与刘备合围吕布于下邳。吕布以陷阵营、并州铁骑背城列营（下邳城防列加成），张辽另守彭城为犄角。联军自西、北两面压上，须断绝吕布外援、攻拔坚城；吕布若能坚守至冬去春来（第12回合），曹操粮尽自退。",
+  "units": [
+    { "counter": "caocao",     "owner": 0, "hex": [6, 9] },
+    { "counter": "caoren",     "owner": 0, "hex": [5, 9] },
+    { "counter": "xiahoudun",  "owner": 0, "hex": [5, 8] },
+    { "counter": "xiahouyuan", "owner": 0, "hex": [6, 8] },
+    { "counter": "caohong",    "owner": 0, "hex": [6, 10] },
+    { "counter": "yujin",      "owner": 0, "hex": [7, 8] },
+    { "counter": "lejin",      "owner": 0, "hex": [8, 9] },
+    { "counter": "dianwei",    "owner": 0, "hex": [7, 9] },
+    { "counter": "huqi_a",     "owner": 0, "hex": [4, 9] },
+    { "counter": "huqi_b",     "owner": 0, "hex": [5, 10] },
+    { "counter": "wei_buqu_a", "owner": 0, "hex": [4, 8] },
+    { "counter": "wei_buqu_b", "owner": 0, "hex": [3, 9] },
+    { "counter": "wei_buqu_c", "owner": 0, "hex": [4, 10] },
+    { "counter": "wei_buqu_d", "owner": 0, "hex": [3, 8] },
+
+    { "counter": "liubei",     "owner": 0, "hex": [5, 3] },
+    { "counter": "guanyu",     "owner": 0, "hex": [6, 3] },
+    { "counter": "zhangfei",   "owner": 0, "hex": [4, 3] },
+    { "counter": "zhaoyun",    "owner": 0, "hex": [5, 4] },
+    { "counter": "jianyong",   "owner": 0, "hex": [7, 4] },
+    { "counter": "liu_buqu_a", "owner": 0, "hex": [4, 4] },
+    { "counter": "liu_buqu_b", "owner": 0, "hex": [6, 4] },
+    { "counter": "liu_buqu_c", "owner": 0, "hex": [3, 4] },
+
+    { "counter": "lvbu",       "owner": 1, "hex": [18, 12] },
+    { "counter": "gaoshun",    "owner": 1, "hex": [17, 12] },
+    { "counter": "chengong",   "owner": 1, "hex": [18, 11] },
+    { "counter": "xianzheng",  "owner": 1, "hex": [17, 11] },
+    { "counter": "xianzheng2", "owner": 1, "hex": [19, 11] },
+    { "counter": "bingzhouqi", "owner": 1, "hex": [19, 12] },
+    { "counter": "lv_buqu_a",  "owner": 1, "hex": [17, 13] },
+    { "counter": "lv_buqu_b",  "owner": 1, "hex": [18, 13] },
+    { "counter": "lv_buqu_c",  "owner": 1, "hex": [19, 13] },
+
+    { "counter": "zhangliao",  "owner": 1, "hex": [9, 8] },
+    { "counter": "lv_buqu_d",  "owner": 1, "hex": [10, 8] },
+    { "counter": "lv_buqu_e",  "owner": 1, "hex": [9, 9] },
+    { "counter": "bingzhouqi2","owner": 1, "hex": [8, 8] },
+    { "counter": "lv_buqu_f",  "owner": 1, "hex": [10, 9] }
+  ]
+}
